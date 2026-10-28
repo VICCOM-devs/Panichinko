@@ -1,0 +1,22 @@
+name: demo
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Build itch.io zip
+        run: python3 tools/build_itch.py "$(grep -o 'Panichinko demo v[0-9.]*' demo/index.html | head -1 | sed 's/.*v//')"
+      - run: npm run test:dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: itch-html5
+          path: dist/*.zip

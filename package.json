@@ -1,0 +1,10 @@
+{
+  "name": "panichinko-demo",
+  "private": true,
+  "scripts": {
+    "test": "node tests/streamer.spec.js && node tests/smoke.spec.js",
+    "test:dist": "node tests/smoke.spec.js dist/index.html",
+    "build": "python3 tools/build_itch.py"
+  },
+  "devDependencies": { "playwright": "^1.48.0" }
+}
