@@ -73,6 +73,11 @@ body.touch #vote{display:none}
 @media (max-height:700px){#vote{width:250px;font-size:13px;top:auto;bottom:122px;transform:none;padding:8px 10px}#vote .vo{padding:5px 7px;margin:4px 0}#vote .vs{margin-bottom:4px}#vote.idle{bottom:122px}}
 .set input[type=text]{padding:7px 9px;border-radius:6px;background:#2a2016;color:#f3eadb;border:1px solid #6b5536;font-family:inherit;font-size:14px}
 #twSt{font-size:13px;max-width:440px;min-height:18px}
+.seat{display:flex;justify-content:space-between;gap:20px;min-width:300px;padding:8px 12px;margin:4px 0;border-radius:8px;background:#1e1711;border:1px solid #3a2c1e;font-size:15px}
+.seat .sr{font-weight:700}
+#lbCode{font-size:44px;font-weight:900;letter-spacing:10px;color:#f4c45a;text-shadow:0 3px 0 #6e1212}
+#onSt,#lbSt{font-size:13px;max-width:440px;min-height:18px}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center}
 #ver{position:absolute;right:10px;bottom:8px;font-size:11px;opacity:.5}
 #ver a{color:inherit}
 </style>
@@ -96,13 +101,13 @@ body.touch #vote{display:none}
 
 <div class="ov" id="mMain">
   <h1>PANICHINKO</h1>
-  <p class="sub">One Biggie plays pachinko. Four Tinies try not to get squished. Playable demo, offline against bots.</p>
-  <button class="b p" data-go="mRole">Play offline</button>
-  <button class="b" disabled>Play online (coming soon)</button>
+  <p class="sub">One Biggie plays pachinko. Four Tinies try not to get squished. Play online with up to 5 friends, or offline against bots.</p>
+  <button class="b" data-go="mRole">Play offline vs bots</button>
+  <button class="b p" data-go="mOnline">Play online</button>
   <button class="b" data-go="mSet">Settings</button>
   <button class="b" data-go="mLb">Leaderboards</button>
   <button class="b" data-go="mStream" id="btnStream">Streamer mode</button>
-  <div id="ver">Panichinko demo v0.1.0 · <a href="https://viccom.se" target="_blank" rel="noopener">VICCOM</a></div>
+  <div id="ver">Panichinko demo v0.2.0 · <a href="https://viccom.se" target="_blank" rel="noopener">VICCOM</a></div>
 </div>
 
 <div class="ov hidden" id="mRole">
@@ -141,6 +146,30 @@ body.touch #vote{display:none}
   <p class="sub">Local best scores on this device. Online boards arrive with online play.</p>
   <table class="res" id="lbT"></table>
   <button class="b" data-go="mMain">Back</button>
+</div>
+
+<div class="ov hidden" id="mOnline">
+  <h2>Play online</h2>
+  <p class="sub">Up to 5 players: 1 Biggie and 4 Tinies. Empty seats are filled with bots. Players connect straight to the host's browser, so the host should keep the game tab open.</p>
+  <div class="row"><span>Your name</span><input type="text" id="onName" maxlength="16" autocomplete="off" spellcheck="false" style="padding:9px;border-radius:8px;background:#2a2016;color:#f3eadb;border:1px solid #6b5536;font-size:15px;width:180px"></div>
+  <button class="b p" id="onQuick">Quick match</button>
+  <button class="b" id="onCreate">Create private room</button>
+  <div class="row"><input type="text" id="onCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" style="padding:10px;border-radius:8px;background:#2a2016;color:#f3eadb;border:1px solid #6b5536;font-size:18px;width:110px;text-transform:uppercase;letter-spacing:4px;text-align:center"><button class="b" id="onJoin" style="min-width:0;width:130px">Join</button></div>
+  <div id="onSt"></div>
+  <button class="b" data-go="mMain">Back</button>
+</div>
+
+<div class="ov hidden" id="mLobby">
+  <h2>Room</h2>
+  <div id="lbCode"></div>
+  <div class="row"><button class="b" id="lbCopy" style="min-width:0;padding:6px 12px;font-size:13px">Copy invite</button><span id="lbInfo" style="font-size:13px;opacity:.75"></span></div>
+  <div id="lbBody"></div>
+  <div class="row"><button class="b" id="lbRoleB" style="min-width:0;width:170px">Play as Biggie</button><button class="b" id="lbRoleT" style="min-width:0;width:170px">Play as Tiny</button></div>
+  <div id="lbBoards" class="row" style="max-width:640px"></div>
+  <button class="b p" id="lbStart">Start round</button>
+  <div id="lbWait" style="font-size:14px;opacity:.8"></div>
+  <div id="lbSt"></div>
+  <button class="b" id="lbLeave">Leave room</button>
 </div>
 
 <div class="ov hidden" id="mStream">
@@ -551,6 +580,7 @@ function startGame(r){
   hand={x:B.cx,tx:B.cx,cd:1.2,ph:Math.random()*10,rot:0};
   const mix=role==='tiny'?[null,'easy','normal','hard']:['easy','normal','normal','hard'];
   for(let i=0;i<4;i++){const t=makeTiny(i,role==='tiny'&&i===0,mix[i]);t.spawnPt=pickSpawn();t.respawnT=0.01+i*0.05;tinies.push(t)}
+  netAfterTinies();
   running=true;
   document.querySelectorAll('.ov').forEach(o=>o.classList.add('hidden'));
   ['hud','me','esc'].forEach(id=>document.getElementById(id).classList.remove('hidden'));
@@ -574,7 +604,7 @@ const HINTS={
 let hintQ=[],toastT=0;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.remove('hidden');toastT=4.5}
 function maybeHints(){
-  if(ST.seen[role])return false;
+  if(ST.seen[role]||NET.on)return false;
   const H=HINTS[role];document.getElementById('hintH').textContent=H.h;document.getElementById('hintB').innerHTML=H.b;
   running=false;document.getElementById('mHint').classList.remove('hidden');hintQ=H.tips.slice();return true;
 }
@@ -1115,14 +1145,15 @@ function update(dt){
   /* inputs */
   if(role==='biggie'){
     if(keys.a||keys.arrowleft)hand.tx-=B.W*0.9*dt;if(keys.d||keys.arrowright)hand.tx+=B.W*0.9*dt;
-  }else bigBot(dt);
+  }else if(big.remote)netBigInput(dt);else bigBot(dt);
   hand.tx=clamp(hand.tx,B.R+5,B.W-B.R-5);
   const hs=B.W*1.1*dt;hand.x+=clamp(hand.tx-hand.x,-hs,hs);hand.cd-=dt;
   const p=playerTiny();
   if(p){const i=p.inp;i.left=!!(keys.a||keys.arrowleft||tbtn.left);i.right=!!(keys.d||keys.arrowright||tbtn.right);
     i.up=!!((keys.w||keys.arrowup)&&p.grapple)||!!(tbtn.hook&&p.grapple);i.down=!!(keys.s||keys.arrowdown);
     if(mouse.used){const w=toWorld(mouse.x,mouse.y);i.aimX=w.x-p.x;i.aimY=w.y-p.y}else{i.aimX=p.facing*0.55;i.aimY=-1}}
-  for(const t of tinies){if(!t.alive)continue;if(!t.isPlayer)botThink(t,dt);control(t,dt);t.preVx=t.vx;t.preVy=t.vy}
+  if(NET.host)netApplyInputs();
+  for(const t of tinies){if(!t.alive)continue;if(!t.isPlayer&&!t.remote)botThink(t,dt);control(t,dt);t.preVx=t.vx;t.preVy=t.vy}
   /* physics */
   const n=Math.max(2,Math.ceil(dt/(1/240))),h=dt/n;
   const gnd=new Array(tinies.length).fill(false);
@@ -1172,6 +1203,12 @@ function update(dt){
   for(let j=shinies.length-1;j>=0;j--){shinies[j].life-=dt;if(shinies[j].life<=0)shinies.splice(j,1)}
   for(const q of B.pegs)if(q.sup>0)q.sup-=dt;
   for(let j=fakes.length-1;j>=0;j--){fakes[j].life-=dt;if(fakes[j].life<=0){fakes.splice(j,1);wakeAll(false)}}
+  goreStep(dt);
+  shake*=Math.exp(-6*dt);bigShake*=Math.exp(-7*dt);if(shake>30)shake=30;
+  updateCam(dt);
+}
+
+function goreStep(dt){
   /* gore particles */
   const segs=B.segs;
   stepBodies(dt);
@@ -1183,10 +1220,7 @@ function update(dt){
   for(let j=runners.length-1;j>=0;j--){const r=runners[j];r.life-=dt;const ny=r.y+r.v*dt;gctx.fillStyle='rgba(115,6,6,.75)';gctx.beginPath();gctx.ellipse(r.x,(r.y+ny)/2,r.w||0.75,Math.max(0.6,(ny-r.y)/2+0.4),0,0,7);gctx.fill();r.y=ny;r.v*=0.997;if(r.life<=0||r.y>B.floor){gctx.beginPath();gctx.arc(r.x,r.y,1.1,0,7);gctx.fill();runners.splice(j,1)}}
   for(let j=scr.length-1;j>=0;j--){scr[j].t+=dt;if(scr[j].t>3.5)scr.splice(j,1)}
   for(let j=fxs.length-1;j>=0;j--){fxs[j].t+=dt;fxs[j].y-=22*dt;if(fxs[j].t>1.3)fxs.splice(j,1)}
-  shake*=Math.exp(-6*dt);bigShake*=Math.exp(-7*dt);if(shake>30)shake=30;
-  updateCam(dt);
 }
-
 /* ---------------- camera ---------------- */
 let dc=null;
 function updateCam(dt){
@@ -1393,6 +1427,7 @@ function hud(dt){
   const s=Math.max(0,Math.ceil(roundT));document.getElementById('timer').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
   let h=`<span class="chip"><span class="dot" style="background:#f4c45a"></span>Biggie ${Math.round(big.score)}</span>`;
   for(const t of tinies)h+=`<span class="chip"><span class="dot" style="background:${t.color}"></span>${t.name}${t.sk?' <span style="opacity:.55;font-size:11px">'+t.sk+'</span>':''} ${Math.round(t.score)}${t.alive?'':' ☠'}</span>`;
+  if(NET.on)h+=`<span class="chip" style="border-color:#9146ff">Room ${NET.code}${NET.client?' · '+NET.ping+' ms':' · '+NET.players.length+' players'}</span>`;
   document.getElementById('scores').innerHTML=h;
   const me=document.getElementById('me');
   if(role==='biggie'){me.innerHTML=`<div class="chip">Next drop: ${activeCoins()>=COINCAP?'board full':hand.cd>0?hand.cd.toFixed(1)+'s':'ready'}</div><div class="chip">Tilt (Z / X${isTouch?'':' / right-click'}): ${'●'.repeat(big.tilts)}${'○'.repeat(3-big.tilts)}${big.tilts<3?' next in '+Math.ceil(15-big.tiltReg)+'s':''}</div><div class="chip">Power (Q): ${big.power?BPOW[big.power]:'none – hit a ? orb with a coin'}</div>`}
@@ -1405,7 +1440,7 @@ function frame(t){
   let dt=(t-last)/1000;last=t;if(dt>1/30)dt=1/30;if(dt<0)dt=0;
   requestAnimationFrame(frame);
   if(running&&ST.crt==='ca'&&glOK&&!crtDowngraded){perfAcc+=dt;perfN++;if(perfAcc>3){if(perfAcc/perfN>1/42){crtDowngraded=true;ST.crt='subtle';applyCRT();toast('CRT colour fringe turned off to keep the frame rate up (Settings)')}perfAcc=0;perfN=0}}
-  try{if(running){update(dt);if(running)hud(dt)}draw();glPresent();if(!running&&hlPlay&&!document.getElementById('mEnd').classList.contains('hidden'))drawHighlight(dt)}catch(err){console.error(err)}
+  try{if(running){if(NET.client)netClientUpdate(dt);else{update(dt);if(NET.host)netHostTick(dt)}if(running)hud(dt)}draw();glPresent();if(!running&&hlPlay&&!document.getElementById('mEnd').classList.contains('hidden'))drawHighlight(dt)}catch(err){console.error(err)}
 }
 requestAnimationFrame(frame);
 
@@ -1446,16 +1481,16 @@ document.querySelectorAll('#touch button').forEach(b=>{
 
 /* ---------------- menus ---------------- */
 function fillBoards(){const el=document.getElementById('boardPick');el.innerHTML='<div style="width:100%;opacity:.7;font-size:13px">Board</div>'+Object.entries(BOARDS).map(([k,v])=>`<button class="b${ST.board===k?' p':''}" data-board="${k}" style="min-width:0;padding:8px 14px;font-size:14px">${v}</button>`).join('');el.querySelectorAll('[data-board]').forEach(b=>b.onclick=()=>{ST.board=b.dataset.board;saveSet();fillBoards();previewBoard()})}
-function show(id){if(id==='mRole')fillBoards();document.querySelectorAll('.ov').forEach(o=>o.classList.toggle('hidden',o.id!==id));if(id==='mLb')fillLb();if(id==='mSet')fillSet();if(id==='mStream')fillStream()}
+function show(id){if(id==='mMain'&&NET.on)netLeave();if(id==='mOnline'){const n=document.getElementById('onName');if(n&&!n.value)n.value=ST.name||''}if(id==='mRole')fillBoards();document.querySelectorAll('.ov').forEach(o=>o.classList.toggle('hidden',o.id!==id));if(id==='mLb')fillLb();if(id==='mSet')fillSet();if(id==='mStream')fillStream()}
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.go)));
 document.addEventListener('click',e=>{if(e.target.closest('button.b,.card,#hintGo')){initAudio();sUi(!!e.target.closest('.p,#hintGo,.card'))}},true);
 document.getElementById('pickBig').addEventListener('click',()=>startGame('biggie'));
 document.getElementById('pickTiny').addEventListener('click',()=>startGame('tiny'));
-document.getElementById('again').addEventListener('click',()=>startGame(role));
+document.getElementById('again').addEventListener('click',()=>{if(NET.on){show('mLobby');netLobbyUI()}else startGame(role)});
 document.getElementById('esc').addEventListener('click',quit);
 function toggleFS(){try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}}
 document.getElementById('fsBtn').addEventListener('click',toggleFS);
-function quit(){smRoundEnd();document.getElementById('fsBtn').classList.add('hidden');running=false;musicStop();if(rollG)rollG.gain.value=0;hintQ=[];document.getElementById('toast').classList.add('hidden');document.getElementById('mHint').classList.add('hidden');['hud','me','esc','touch'].forEach(id=>document.getElementById(id).classList.add('hidden'));show('mMain')}
+function quit(){smRoundEnd();if(NET.on){netLeave();NET.inGame=false}document.getElementById('fsBtn').classList.add('hidden');running=false;musicStop();if(rollG)rollG.gain.value=0;hintQ=[];document.getElementById('toast').classList.add('hidden');document.getElementById('mHint').classList.add('hidden');['hud','me','esc','touch'].forEach(id=>document.getElementById(id).classList.add('hidden'));show('mMain')}
 function fillLb(){document.getElementById('lbT').innerHTML=`<tr><th>Role</th><th>Best score</th></tr><tr><td>Biggie</td><td>${BEST.big||'–'}</td></tr><tr><td>Tiny</td><td>${BEST.tiny>-99999?BEST.tiny:'–'}</td></tr><tr><td>Rounds played</td><td>${BEST.rounds}</td></tr>`}
 function fillSet(){
   const r=document.getElementById('sRatio'),d=document.getElementById('sDrop'),v=document.getElementById('sVol'),g=document.getElementById('sGore');
@@ -1594,8 +1629,436 @@ function fillStream(){
 }
 if(ST.tw.on&&ST.tw.chan&&!ST.tw.fake)twConnect();
 fillStreamBtn();
+/* ---------------- online play: peer-to-peer, host-authoritative ---------------- */
+/* Signalling: Supabase Realtime broadcast + presence (no tables). Game traffic: WebRTC data channels.
+   The host's browser runs the simulation; clients send inputs and render 20 Hz snapshots. */
+const NETV='0.2.0';
+const NETCFG={
+  rt:'wss://bzcseqlvfezydosdoort.supabase.co/realtime/v1/websocket',
+  key:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6Y3NlcWx2ZmV6eWRvc2Rvb3J0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0OTQyMjIsImV4cCI6MjEwODA3MDIyMn0.osb3G185ogjRJarcFx7F56yCdvUzFIOAYvXOYpre4JI',
+  ice:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},{urls:'stun:stun.cloudflare.com:3478'}],
+  maxPlayers:5,snapHz:20,inHz:30,delay:0.1
+};
+const NET={on:false,host:false,client:false,inGame:false,code:'',me:{id:'',name:''},peers:new Map(),players:[],sig:null,roomCh:null,lobbyCh:null,
+  quick:false,myI:-1,names:{},ping:0,buf:[],rt:null,cmap:new Map(),byI:{},evq:[],snapT:0,inT:0,cnt:{j:0,da:0,h:0,p:0,dr:0,tl:0,tr:0,bp:0},
+  bigInp:null,bigLast:null,stBak:null,mute:false,hostPc:null,hostR:null,hostU:null,prevMe:null,pingT:0,assign:null,lastTx:0};
+const netId=()=>Math.random().toString(36).slice(2,10);
+const r1=v=>Math.round(v*10)/10,r2=v=>Math.round(v*100)/100;
+
+/* --- signalling transports --- */
+class SupaSig{
+  constructor(){this.ws=null;this.ref=0;this.ch={};this.hb=null;this.ready=null}
+  connect(){if(this.ready)return this.ready;
+    this.ready=new Promise((res,rej)=>{let ws;try{ws=new WebSocket(NETCFG.rt+'?apikey='+NETCFG.key+'&vsn=1.0.0')}catch(e){this.ready=null;return rej(e)}
+      this.ws=ws;const to=setTimeout(()=>{rej(new Error('timeout'));try{ws.close()}catch(e){}},8000);
+      ws.onopen=()=>{clearTimeout(to);this.hb=setInterval(()=>this.raw({topic:'phoenix',event:'heartbeat',payload:{},ref:String(++this.ref)}),25000);res()};
+      ws.onerror=()=>{};
+      ws.onclose=()=>{clearTimeout(to);clearInterval(this.hb);this.ready=null;this.ws=null;for(const k in this.ch){const c=this.ch[k];delete this.ch[k];c.onClose&&c.onClose()}rej(new Error('closed'))};
+      ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}const c=this.ch[m.topic];if(!c)return;
+        if(m.event==='broadcast'&&m.payload)c.onMsg&&c.onMsg(m.payload.event,m.payload.payload);
+        else if(m.event==='presence_state')c._pres(m.payload,null);
+        else if(m.event==='presence_diff')c._pres(m.payload.joins,m.payload.leaves);
+        else if(m.event==='phx_reply'&&m.ref===c.jref){c._joined(m.payload&&m.payload.status==='ok',m.payload&&m.payload.response)}
+        else if(m.event==='phx_close'||m.event==='phx_error'){delete this.ch[m.topic];c.onClose&&c.onClose()}}});
+    return this.ready}
+  raw(m){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(m))}
+  async join(name,o){await this.connect();const topic='realtime:'+name,jref=String(++this.ref),self=this;
+    const c={topic,jref,pres:{},onMsg:o.onMsg,onPres:o.onPres,onClose:o.onClose,
+      _pres(j,l){if(!l)c.pres={};for(const k in (j||{}))c.pres[k]=j[k].metas[j[k].metas.length-1];for(const k in (l||{}))delete c.pres[k];c.onPres&&c.onPres(c.pres)},
+      send(ev,data){self.raw({topic,event:'broadcast',payload:{type:'broadcast',event:ev,payload:data},ref:String(++self.ref),join_ref:jref})},
+      track(meta){self.raw({topic,event:'presence',payload:{type:'presence',event:'track',payload:meta},ref:String(++self.ref),join_ref:jref})},
+      leave(){self.raw({topic,event:'phx_leave',payload:{},ref:String(++self.ref),join_ref:jref});delete self.ch[topic]}};
+    this.ch[topic]=c;
+    return new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('join timeout')),8000);
+      c._joined=(ok,resp)=>{clearTimeout(to);ok?res(c):rej(new Error((resp&&resp.reason)||'join refused'))};
+      this.raw({topic,event:'phx_join',payload:{config:{broadcast:{self:false,ack:false},presence:{enabled:!!o.presence,key:NET.me.id},private:false}},ref:jref,join_ref:jref})})}
+  close(){if(this.ws)try{this.ws.close()}catch(e){}}
+}
+/* Same-origin tabs (dev + tests): ?sig=local */
+class LocalSig{
+  constructor(){this.ch={}}
+  connect(){return Promise.resolve()}
+  async join(name,o){const bc=new BroadcastChannel('pchsig:'+name),me=NET.me.id,self=this;
+    const c={pres:{},mine:null,onMsg:o.onMsg,onPres:o.onPres,onClose:o.onClose,
+      send(ev,data){bc.postMessage({k:'b',ev,data})},
+      track(meta){c.mine=meta;bc.postMessage({k:'t',id:me,meta})},
+      leave(){if(c.mine)bc.postMessage({k:'u',id:me});bc.close();delete self.ch[name]}};
+    bc.onmessage=e=>{const m=e.data;if(m.k==='b')c.onMsg&&c.onMsg(m.ev,m.data);
+      else if(m.k==='t'){c.pres[m.id]=m.meta;c.onPres&&c.onPres(c.pres)}
+      else if(m.k==='u'){delete c.pres[m.id];c.onPres&&c.onPres(c.pres)}
+      else if(m.k==='q'&&c.mine)bc.postMessage({k:'t',id:me,meta:c.mine})};
+    this.ch[name]=c;bc.postMessage({k:'q'});
+    setTimeout(()=>c.onPres&&c.onPres(c.pres),300);return c}
+  close(){for(const k in this.ch)this.ch[k].leave()}
+}
+function netSig(){if(!NET.sig)NET.sig=/[?&]sig=local/.test(location.search)?new LocalSig():new SupaSig();return NET.sig}
+
+/* --- UI helpers --- */
+function netStatus(txt,col){for(const id of ['onSt','lbSt']){const el=document.getElementById(id);if(el){el.textContent=txt||'';el.style.color=col||'#f3eadb'}}}
+function netName(){const el=document.getElementById('onName');let n=(el&&el.value||ST.name||'').trim().replace(/[<>]/g,'').slice(0,16);if(!n)n='Tiny'+Math.floor(100+Math.random()*900);ST.name=n;saveSet();if(el)el.value=n;return n}
+function netCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ';let s='';for(let i=0;i<4;i++)s+=A[Math.floor(Math.random()*A.length)];return s}
+function netBusy(b){document.querySelectorAll('#mOnline button.b').forEach(x=>{if(x.dataset.go!=='mMain')x.disabled=b})}
+
+/* --- host --- */
+async function netHost(quick){
+  netReset();NET.on=true;NET.host=true;NET.quick=!!quick;NET.me={id:netId(),name:netName()};NET.code=netCode();
+  NET.players=[{id:NET.me.id,name:NET.me.name,role:'B'}];
+  netStatus('Opening room …','#cdb4ff');netBusy(true);
+  try{const s=netSig();
+    NET.roomCh=await s.join('pch-room-'+NET.code,{onMsg:netHostSig,onClose:()=>{if(NET.host)netStatus('Lost the matchmaking server. Players already in the room can keep playing.','#ffb36b')}});
+    if(quick){NET.lobbyCh=await s.join('pch-lobby',{presence:true});netAdvertise()}
+  }catch(e){netBusy(false);netReset();netStatus('Could not reach the matchmaking server ('+e.message+'). Check your connection and try again.','#ff9a7a');return}
+  netBusy(false);show('mLobby');netLobbyUI();
+}
+function netAdvertise(){if(!NET.lobbyCh||!NET.host)return;NET.lobbyCh.track({code:NET.code,n:NET.players.length,v:NETV,open:NET.players.length<NETCFG.maxPlayers,host:NET.me.name})}
+async function netHostSig(ev,m){
+  if(!m||(m.to&&m.to!==NET.me.id))return;
+  if(ev==='hello'){
+    if(m.v!==NETV){NET.roomCh.send('nope',{to:m.from,why:'This room runs a different version of Panichinko. Reload the page.'});return}
+    if(NET.peers.has(m.from))return;
+    if(NET.players.length>=NETCFG.maxPlayers){NET.roomCh.send('nope',{to:m.from,why:'That room is full.'});return}
+    const pc=new RTCPeerConnection({iceServers:NETCFG.ice}),P={id:m.from,name:String(m.name||'Tiny').replace(/[<>]/g,'').slice(0,16),pc,r:null,u:null,pend:[],last:{j:0,da:0,h:0,p:0,dr:0,tl:0,tr:0,bp:0},open:false};
+    NET.peers.set(m.from,P);
+    P.r=pc.createDataChannel('r',{ordered:true});P.u=pc.createDataChannel('u',{ordered:false,maxRetransmits:0});
+    P.r.onopen=()=>netHostPeerOpen(P);P.r.onclose=()=>netHostPeerGone(P);
+    P.r.onmessage=e=>netHostMsg(P,e.data);P.u.onmessage=e=>netHostMsg(P,e.data);
+    pc.onicecandidate=e=>{if(e.candidate)NET.roomCh.send('ice',{to:P.id,from:NET.me.id,c:e.candidate.toJSON()})};
+    pc.onconnectionstatechange=()=>{if(pc.connectionState==='failed')netHostPeerGone(P)};
+    setTimeout(()=>{if(!P.open&&NET.peers.get(P.id)===P){netHostPeerGone(P)}},15000);
+    await pc.setLocalDescription(await pc.createOffer());
+    NET.roomCh.send('offer',{to:P.id,from:NET.me.id,sdp:pc.localDescription.toJSON?pc.localDescription.toJSON():{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});
+  }else if(ev==='answer'){const P=NET.peers.get(m.from);if(!P)return;await P.pc.setRemoteDescription(m.sdp);for(const c of P.pend)P.pc.addIceCandidate(c).catch(()=>{});P.pend=[]}
+  else if(ev==='ice'){const P=NET.peers.get(m.from);if(!P)return;if(P.pc.remoteDescription)P.pc.addIceCandidate(m.c).catch(()=>{});else P.pend.push(m.c)}
+}
+function netSend(P,o,unrel){const ch=unrel?P.u:P.r;if(ch&&ch.readyState==='open'){try{ch.send(typeof o==='string'?o:JSON.stringify(o))}catch(e){}}}
+function netAll(o,unrel,gameOnly){const s=JSON.stringify(o);for(const P of NET.peers.values())if(P.open&&((!unrel&&!gameOnly)||P.inGame))netSend(P,s,unrel)}
+function netHostPeerOpen(P){
+  P.open=true;const tinyN=NET.players.filter(p=>p.role==='T').length;
+  NET.players.push({id:P.id,name:P.name,role:tinyN<4?'T':'B'});
+  if(running&&NET.inGame)netJoinMidRound(P);
+  netLobbyPush();feed(P.name+' joined');sPick();netAdvertise();
+}
+function netHostPeerGone(P){
+  if(NET.peers.get(P.id)!==P)return;NET.peers.delete(P.id);try{P.pc.close()}catch(e){}
+  if(!P.open)return;
+  NET.players=NET.players.filter(p=>p.id!==P.id);
+  if(running&&NET.inGame){for(const t of tinies)if(t.remote===P.id){t.remote=null;t.sk='normal';t.name=BOTN[t.i]}if(big.remote===P.id){big.remote=null;big.name='Biggie bot ('+ST.bigBot+')'}}
+  feed(P.name+' left');netLobbyPush();netAdvertise();
+}
+function netHostMsg(P,raw){let m;try{m=JSON.parse(raw)}catch(e){return}
+  if(m.t==='i'){P.inp=m;return}
+  if(m.t==='pi'){netSend(P,{t:'po',c:m.c});return}
+  if(m.t==='role'){if(running)return;const pl=NET.players.find(p=>p.id===P.id);if(pl)netSetRole(pl,m.r);return}
+  if(m.t==='bye'){netHostPeerGone(P)}
+}
+function netSetRole(pl,r){
+  if(r==='B'){const cur=NET.players.find(p=>p.role==='B');if(cur&&cur!==pl)cur.role='T';pl.role='B'}
+  else if(r==='T'){if(pl.role==='T')return;if(NET.players.filter(p=>p.role==='T').length>=4)return;pl.role='T'}
+  netLobbyPush();
+}
+function netLobbyState(){return{t:'lobby',code:NET.code,host:NET.me.id,quick:NET.quick,players:NET.players,board:ST.board,running:running&&NET.inGame}}
+function netLobbyPush(){if(!NET.host)return;netAll(netLobbyState());netLobbyUI()}
+function netAssign(){
+  const a={B:null,T:[null,null,null,null]},meP=NET.players.find(p=>p.id===NET.me.id);let slot=0;
+  if(meP.role==='T')a.T[slot++]=NET.me.id;
+  for(const p of NET.players){if(p.role==='B'&&!a.B)a.B=p.id}
+  for(const p of NET.players){if(p.id!==NET.me.id&&p.role==='T'&&slot<4)a.T[slot++]=p.id}
+  return a}
+function netStartMsg(){const nm={};NET.players.forEach(p=>nm[p.id]=p.name);
+  return{t:'start',board:ST.board,ratio:ST.ratio,dropInt:ST.dropInt,bigBot:ST.bigBot,ph:hand.ph,a:NET.assign,names:nm,ht:now,rt:roundT}}
+function netHostStart(){
+  if(!NET.host)return;NET.assign=netAssign();NET.inGame=true;NET.mute=true;
+  startGame(NET.assign.B===NET.me.id?'biggie':'tiny');NET.mute=false;
+  const msg=netStartMsg();for(const P of NET.peers.values())if(P.open){P.inGame=true;P.last={j:0,da:0,h:0,p:0,dr:0,tl:0,tr:0,bp:0};netSend(P,msg)}
+  netAdvertise();
+}
+function netJoinMidRound(P){
+  const pl=NET.players.find(p=>p.id===P.id),a=NET.assign;
+  if(pl.role==='B'&&!a.B&&!big.remote){a.B=P.id;big.remote=P.id;big.name=P.name}
+  else{pl.role='T';let k=a.T.findIndex((v,i)=>!v&&!(tinies[i]&&tinies[i].isPlayer));if(k<0){if(!a.B){a.B=P.id;pl.role='B';big.remote=P.id;big.name=P.name}else return}
+    else{a.T[k]=P.id;const t=tinies[k];t.remote=P.id;t.sk=null;t.name=P.name}}
+  P.inGame=true;P.last={j:0,da:0,h:0,p:0,dr:0,tl:0,tr:0,bp:0};netSend(P,netStartMsg());
+}
+/* called from startGame after tinies are built */
+function netAfterTinies(){
+  if(!NET.on)return;
+  if(NET.host){const a=NET.assign,nm={};NET.players.forEach(p=>nm[p.id]=p.name);
+    a.T.forEach((id,i)=>{const t=tinies[i];if(id&&id!==NET.me.id){t.remote=id;t.sk=null;t.name=nm[id]||'Tiny'}});
+    if(a.B&&a.B!==NET.me.id){big.remote=a.B;big.name=nm[a.B]||'Biggie'}else if(a.B!==NET.me.id)big.name='Biggie bot ('+ST.bigBot+')';
+    if(role==='tiny')tinies[0].name='You';
+    NET.snapT=0;NET.evq=[];return}
+  /* client: puppets, own Tiny first */
+  const a=NET.assign;NET.myI=a.T.indexOf(NET.me.id);NET.byI={};
+  const arr=[];for(let i=0;i<4;i++){const t=makeTiny(i,i===NET.myI,null);t.alive=false;t.respawnT=9;t.name=a.T[i]?(i===NET.myI?'You':NET.names[a.T[i]]||'Tiny'):BOTN[i];NET.byI[i]=t;arr.push(t)}
+  tinies=NET.myI>=0?[NET.byI[NET.myI]].concat(arr.filter(t=>t.i!==NET.myI)):arr;
+  big.name=a.B===NET.me.id?'You':a.B?(NET.names[a.B]||'Biggie'):'Biggie bot';
+  coins=[];NET.cmap.clear();NET.buf=[];NET.rt=null;NET.prevMe=null;SM.active=false;
+}
+/* host: remote input */
+function netApplyInputs(){
+  for(const P of NET.peers.values()){const m=P.inp;if(!m)continue;
+    const t=tinies.find(q=>q.remote===P.id);
+    if(t){const i=t.inp;i.left=!!m.l;i.right=!!m.r;i.down=!!m.d;i.up=!!(m.u&&t.grapple);if(typeof m.ax==='number'){i.aimX=m.ax;i.aimY=m.ay}
+      if(t.alive){if(m.j>P.last.j)i.jumpP=true;if(m.da>P.last.da)i.dashP=true;if(m.h>P.last.h)i.hookP=true;if(m.p>P.last.p)i.powP=true}
+      P.last.j=m.j;P.last.da=m.da;P.last.h=m.h;P.last.p=m.p}
+    if(big&&big.remote===P.id){NET.bigInp=m;NET.bigP=P}}
+}
+function netBigInput(dt){const m=NET.bigInp,P=NET.bigP;if(!m||!P)return;
+  if(typeof m.hx==='number')hand.tx=m.hx;
+  if(m.dr>P.last.dr)dropCoin();if(m.tl>P.last.tl)tilt(-1);if(m.tr>P.last.tr)tilt(1);if(m.bp>P.last.bp&&big.power)useBigPower();
+  P.last.dr=m.dr;P.last.tl=m.tl;P.last.tr=m.tr;P.last.bp=m.bp}
+function netTiny(t){const o={};for(const k in t){if(k[0]==='_'||k==='name'||k==='isPlayer'||k==='remote')continue;const v=t[k],ty=typeof v;if(ty==='number')o[k]=r2(v);else if(ty==='boolean'||ty==='string')o[k]=v}
+  o.grapple=t.grapple?{p:{x:r1(t.grapple.p.x),y:r1(t.grapple.p.y),r:t.grapple.p.r||2},L:r1(t.grapple.L),t:r2(t.grapple.t)}:null;
+  o.flip=t.flip?Object.assign({},t.flip):null;o.spawnPt=t.spawnPt?{x:r1(t.spawnPt.x),y:r1(t.spawnPt.y)}:null;o.power=t.power||null;return o}
+function netSnap(){
+  return{t:'s',ht:r2(now),rt:r2(roundT),
+    c:coins.map(c=>[c.id,r1(c.x),r1(c.y),r2(c.rot),r2(c.fade),r2(c.blood||0),c.inSlot?1:0,c.tunnel?{h:{x:c.tunnel.h.x,y:c.tunnel.h.y,ex:c.tunnel.h.ex,ey:c.tunnel.h.ey},t:r2(c.tunnel.t),tot:c.tunnel.tot}:0,c.bs&&c.blood>0?c.bs:0,r1(c.vx),r1(c.vy),c.rollT?r2(c.rollT):0,r1(c.rollX||0),r1(c.rollY||0)]),
+    ti:tinies.map(netTiny),
+    b:[r1(big.score),big.kills,big.tilts,r2(big.tiltReg),big.power||0],
+    h:[r1(hand.x),r2(hand.cd)],
+    sp:B.spinners.map(q=>r2(q.a)),mv:B.movers.map(p=>r1(p.x)),gh:B.ghosts.map(p=>[r2(p.alpha),p.off]),tu:B.tulips.map(tp=>[r2(tp.o),r2(tp.cl),tp.st]),
+    o:orbs.map(o=>[r1(o.x),r1(o.y),r2(o.ph)]),sh:shinies.map(q=>[r1(q.x),r1(q.y),r2(q.life),r2(q.ph)]),
+    f:fakes.map(q=>[r1(q.x),r1(q.y),q.r,q.hits,r2(q.life)]),l:lids.map(l=>[l.k,l.hits,l.ax,l.ay,l.bx,l.by]),
+    su:B.pegs.map((q,i)=>q.sup>0?[i,r2(q.sup)]:0).filter(Boolean),x:[r2(fastT),r2(slowT),doubleN]}
+}
+function netHostTick(dt){
+  if(!NET.host||!NET.inGame||!running)return;
+  NET.snapT-=dt;if(NET.snapT>0)return;NET.snapT=1/NETCFG.snapHz;
+  if(NET.evq.length){netAll({t:'ev',e:NET.evq},false,true);NET.evq=[]}
+  if(NET.peers.size)netAll(netSnap(),true);
+}
+function netEmit(){if(NET.host&&NET.inGame&&!NET.mute&&running)NET.evq.push(Array.from(arguments))}
+
+/* --- client --- */
+async function netJoin(code,silent){
+  code=String(code||'').toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);
+  if(code.length!==4){netStatus('Room codes are 4 letters.','#ff9a7a');return false}
+  netReset();NET.on=true;NET.client=true;NET.code=code;NET.me={id:netId(),name:netName()};
+  if(!silent)netStatus('Looking for room '+code+' …','#cdb4ff');netBusy(true);
+  try{const s=netSig();NET.roomCh=await s.join('pch-room-'+code,{onMsg:netClientSig})}catch(e){netBusy(false);netReset();netStatus('Could not reach the matchmaking server ('+e.message+').','#ff9a7a');return false}
+  return new Promise(res=>{NET.joinDone=ok=>{NET.joinDone=null;netBusy(false);clearTimeout(NET.joinTo);res(ok)};
+    NET.joinTo=setTimeout(()=>{if(NET.joinDone){const f=NET.joinDone;netReset();if(!silent)netStatus(NET.hostPc?'Found the room, but could not connect to the host. One of your networks blocks peer-to-peer play.':'No room with code '+code+'.','#ff9a7a');f(false)}},NET.hostPc?16000:6000);
+    NET.roomCh.send('hello',{from:NET.me.id,name:NET.me.name,v:NETV})});
+}
+async function netClientSig(ev,m){
+  if(!m||m.to!==NET.me.id)return;
+  if(ev==='nope'){const f=NET.joinDone;netReset();netStatus(m.why,'#ff9a7a');f&&f(false);return}
+  if(ev==='offer'){
+    clearTimeout(NET.joinTo);NET.joinTo=setTimeout(()=>{if(NET.joinDone){const f=NET.joinDone;netReset();netStatus('Found the room, but could not connect to the host. One of your networks blocks peer-to-peer play.','#ff9a7a');f(false)}},15000);
+    const pc=new RTCPeerConnection({iceServers:NETCFG.ice});NET.hostPc=pc;NET.hostId=m.from;NET.pend=[];
+    pc.onicecandidate=e=>{if(e.candidate)NET.roomCh&&NET.roomCh.send('ice',{to:m.from,from:NET.me.id,c:e.candidate.toJSON()})};
+    pc.ondatachannel=e=>{const ch=e.channel;if(ch.label==='r'){NET.hostR=ch;ch.onopen=netClientOpen;ch.onclose=()=>netGone('The connection to the host was lost.')}else NET.hostU=ch;ch.onmessage=ev2=>netClientMsg(ev2.data)};
+    pc.onconnectionstatechange=()=>{if(pc.connectionState==='failed')netGone('The connection to the host was lost.')};
+    await pc.setRemoteDescription(m.sdp);for(const c of NET.pend)pc.addIceCandidate(c).catch(()=>{});NET.pend=[];
+    await pc.setLocalDescription(await pc.createAnswer());
+    NET.roomCh.send('answer',{to:m.from,from:NET.me.id,sdp:pc.localDescription.toJSON?pc.localDescription.toJSON():{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});
+  }else if(ev==='ice'){if(NET.hostPc&&NET.hostPc.remoteDescription)NET.hostPc.addIceCandidate(m.c).catch(()=>{});else (NET.pend=NET.pend||[]).push(m.c)}
+}
+function netClientOpen(){
+  if(NET.joinDone)NET.joinDone(true);
+  if(NET.roomCh){const c=NET.roomCh;NET.roomCh=null;setTimeout(()=>c.leave(),3000)}
+  if(NET.lobbyCh){NET.lobbyCh.leave();NET.lobbyCh=null}
+  netStatus('Connected. Waiting for the host to start …','#7dffb0');show('mLobby');
+}
+function netToHost(o,unrel){const ch=unrel?NET.hostU:NET.hostR;if(ch&&ch.readyState==='open')try{ch.send(JSON.stringify(o))}catch(e){}}
+function netClientMsg(raw){let m;try{m=JSON.parse(raw)}catch(e){return}
+  if(m.t==='s'){NET.buf.push(m);if(NET.buf.length>12)NET.buf.shift();if(NET.rt===null)NET.rt=m.ht-NETCFG.delay;return}
+  if(m.t==='ev'){for(const e of m.e)netEvent(e);return}
+  if(m.t==='lobby'){NET.lobby=m;NET.players=m.players;if(!running)netLobbyUI();else netLobbyUI();return}
+  if(m.t==='start'){netClientStart(m);return}
+  if(m.t==='end'){netClientEnd(m);return}
+  if(m.t==='po'){NET.ping=Math.round(performance.now()-m.c);return}
+  if(m.t==='bye'){netGone(m.why||'The host closed the room.')}
+}
+function netClientStart(m){
+  if(!NET.stBak)NET.stBak={board:ST.board,ratio:ST.ratio,dropInt:ST.dropInt,bigBot:ST.bigBot};
+  ST.board=m.board;ST.ratio=m.ratio;ST.dropInt=m.dropInt;ST.bigBot=m.bigBot;NET.assign=m.a;NET.names=m.names;NET.inGame=true;
+  startGame(m.a.B===NET.me.id?'biggie':'tiny');
+  hand.ph=m.ph;now=m.ht;roundT=m.rt;SM.active=false;NET.cnt={j:0,da:0,h:0,p:0,dr:0,tl:0,tr:0,bp:0};
+}
+function netClientEnd(m){
+  if(!running)return;
+  for(const k in m.sc){const t=NET.byI[k];if(t){t.score=m.sc[k][0];t.deaths=m.sc[k][1];t.st=m.sc[k][2]||{}}}
+  big.score=m.big[0];big.kills=m.big[1];endGame();
+}
+function netLerpAng(a,b,f){return a+(b-a)*f}
+function netClientUpdate(dt){
+  /* inputs */
+  netClientInput(dt);
+  if(NET.rt===null||!NET.buf.length){updateCam(dt);return}
+  const last=NET.buf[NET.buf.length-1],target=last.ht-NETCFG.delay;
+  NET.rt+=dt;if(Math.abs(NET.rt-target)>0.5)NET.rt=target;else NET.rt+=(target-NET.rt)*0.08;
+  let a=NET.buf[0],b=last;for(let i=0;i<NET.buf.length-1;i++){if(NET.buf[i].ht<=NET.rt&&NET.buf[i+1].ht>=NET.rt){a=NET.buf[i];b=NET.buf[i+1];break}}
+  const f=b.ht>a.ht?clamp((NET.rt-a.ht)/(b.ht-a.ht),0,1):1;
+  netApply(a,b,f,dt);
+  /* local cosmetic systems */
+  if(hintQ.length&&now>=hintQ[0][0]){toast(hintQ.shift()[1])}
+  wetFrame(dt);audioFrame(dt);
+  if(toastT>0){toastT-=dt;if(toastT<=0)document.getElementById('toast').classList.add('hidden')}
+  tiltOff*=Math.exp(-8*dt);markSegs();
+  for(const t of tinies){if(!t.alive&&t.corpse&&t.respawnT>2){const hd=t.corpse.pts[0];t.deadX=hd.x;t.deadY=hd.y}}
+  goreStep(dt);
+  shake*=Math.exp(-6*dt);bigShake*=Math.exp(-7*dt);if(shake>30)shake=30;
+  netOwnFx();
+  updateCam(dt);
+  NET.pingT-=dt;if(NET.pingT<=0){NET.pingT=2;netToHost({t:'pi',c:performance.now()})}
+}
+function netApply(a,b,f,dt){
+  now=r2(a.ht+(b.ht-a.ht)*f);roundT=b.rt;
+  /* coins */
+  const prevA=new Map(a.c.map(e=>[e[0],e])),seen=new Set(),out=[];
+  for(const e of b.c){const id=e[0];seen.add(id);let c=NET.cmap.get(id);if(!c){c={id,near:{},age:0};NET.cmap.set(id,c)}
+    const pa=prevA.get(id);let x=e[1],y=e[2];if(pa&&Math.hypot(pa[1]-x,pa[2]-y)<B.D*1.5){x=pa[1]+(x-pa[1])*f;y=pa[2]+(y-pa[2])*f}
+    c.x=x;c.y=y;c.rot=e[3];c.fade=e[4];c.blood=e[5];c.inSlot=!!e[6];c.tunnel=e[7]||null;if(e[8])c.bs=e[8];c.vx=e[9];c.vy=e[10];c.rollT=e[11]||0;c.rollX=e[12];c.rollY=e[13];out.push(c)}
+  for(const id of NET.cmap.keys())if(!seen.has(id))NET.cmap.delete(id);
+  coins=out;
+  /* tinies */
+  const pa=a.ti;b.ti.forEach((d,k)=>{const t=NET.byI[d.i];if(!t)return;const keepInp=t.inp,keepName=t.name,keepP=t.isPlayer;
+    Object.assign(t,d);t.inp=keepInp;t.name=keepName;t.isPlayer=keepP;
+    const p=pa[k];if(p&&p.i===d.i&&p.alive===d.alive&&Math.hypot(p.x-d.x,p.y-d.y)<B.D*1.5){t.x=p.x+(d.x-p.x)*f;t.y=p.y+(d.y-p.y)*f}
+    if(t.st===undefined)t.st={}});
+  /* biggie, hand, board */
+  big.score=b.b[0];big.kills=b.b[1];big.tilts=b.b[2];big.tiltReg=b.b[3];big.power=b.b[4]||null;
+  hand.x=a.h[0]+(b.h[0]-a.h[0])*f;hand.cd=b.h[1];
+  b.sp.forEach((v,i)=>{if(B.spinners[i])B.spinners[i].a=netLerpAng(a.sp[i]!==undefined?a.sp[i]:v,v,f)});
+  b.mv.forEach((v,i)=>{if(B.movers[i])B.movers[i].x=(a.mv[i]!==undefined?a.mv[i]+(v-a.mv[i])*f:v)});
+  b.gh.forEach((v,i)=>{if(B.ghosts[i]){B.ghosts[i].alpha=v[0];B.ghosts[i].off=v[1]}});
+  b.tu.forEach((v,i)=>{const tp=B.tulips[i];if(tp){tp.o=v[0];tp.cl=v[1];tp.st=v[2]}});
+  orbs=b.o.map(v=>({x:v[0],y:v[1],ph:v[2]}));shinies=b.sh.map(v=>({x:v[0],y:v[1],life:v[2],ph:v[3]}));
+  fakes=b.f.map(v=>({x:v[0],y:v[1],r:v[2],hits:v[3],life:v[4]}));lids=b.l.map(v=>({k:v[0],hits:v[1],ax:v[2],ay:v[3],bx:v[4],by:v[5]}));
+  for(const q of B.pegs)q.sup=0;for(const v of b.su)if(B.pegs[v[0]])B.pegs[v[0]].sup=v[1];
+  fastT=b.x[0];slowT=b.x[1];doubleN=b.x[2];
+}
+function netOwnFx(){
+  const p=NET.myI>=0?NET.byI[NET.myI]:null;if(!p)return;const q=NET.prevMe;
+  if(q){
+    if(!p.alive&&q.alive){p._spawnSnd=false}
+    if(p.alive&&q.alive){
+      if(!q.grounded&&p.grounded)sLand(clamp((q.vy||0)/600,0.2,1));
+      if(q.grounded&&!p.grounded&&p.vy<-150)sJump();
+      if(!q.grapple&&p.grapple){sHookFire();sHookHit()}
+      if(q.grapple&&!p.grapple&&q.gt>0.3)sRopeCut();
+      if(p.dashT>0&&!(q.dashT>0))sDash();
+      if(p.flip&&!q.flip)sFlip();
+      if(p.hp<q.hp-1){sHurt(p);shake+=4}
+      if(p.grounded&&Math.abs(p.vx)>40){const s2=Math.floor(p.anim*2.2/Math.PI);if(s2!==q.step)sStep();NET.stepPh=s2}
+    }}
+  NET.prevMe={alive:p.alive,grounded:p.grounded,vy:p.vy,grapple:!!p.grapple,gt:p.grapple?p.grapple.t:0,dashT:p.dashT,flip:!!p.flip,hp:p.hp,step:NET.stepPh};
+}
+function netClientInput(dt){
+  NET.inT-=dt;const c=NET.cnt;
+  if(role==='biggie'){if(keys.a||keys.arrowleft)hand.tx-=B.W*0.9*dt;if(keys.d||keys.arrowright)hand.tx+=B.W*0.9*dt;hand.tx=clamp(hand.tx,B.R+5,B.W-B.R-5)}
+  const p=NET.myI>=0?NET.byI[NET.myI]:null;let m;
+  if(p){const i=p.inp;if(i.jumpP){c.j++;i.jumpP=false}if(i.dashP){c.da++;i.dashP=false}if(i.hookP){c.h++;i.hookP=false}if(i.powP){c.p++;i.powP=false}
+    let ax=p.facing*0.55,ay=-1;if(mouse.used){const w=toWorld(mouse.x,mouse.y);ax=r1(w.x-p.x);ay=r1(w.y-p.y)}
+    m={t:'i',l:!!(keys.a||keys.arrowleft||tbtn.left),r:!!(keys.d||keys.arrowright||tbtn.right),u:!!(keys.w||keys.arrowup||tbtn.hook),d:!!(keys.s||keys.arrowdown),ax,ay,j:c.j,da:c.da,h:c.h,p:c.p}}
+  else m={t:'i',hx:r1(hand.tx),dr:c.dr,tl:c.tl,tr:c.tr,bp:c.bp};
+  const key=JSON.stringify(m);if(NET.inT<=0||key!==NET.lastIn){NET.inT=1/NETCFG.inHz;NET.lastIn=key;netToHost(m,true)}
+}
+/* events from host */
+function netEvent(e){const k=e[0];
+  if(k==='feed')origFeed(e[1]);
+  else if(k==='fx')origFx(e[1],e[2],e[3],e[4]);
+  else if(k==='bounce')origOnBounce(e[1],e[2],e[3],NET.cmap.get(e[4]));
+  else if(k==='snd'){const fn=NETSND[e[1]];if(fn)fn.apply(null,e.slice(2))}
+  else if(k==='tilt'){tiltOff=e[1]*7;NETSND.sTilt();if(role==='biggie')bigShake=Math.max(bigShake,4);else shake+=10}
+  else if(k==='kill')netKillFx(e[1],e[2],e[3]);
+}
+function netKillFx(i,how,cid){const t=NET.byI[i];if(!t)return;const src=cid!=null?NET.cmap.get(cid):null;
+  for(const q of B.pegs.concat(B.caps)){if(Math.hypot(q.x-t.x,q.y-t.y)<B.D*0.75)q.wet=(q.wet||0)+1}
+  if(t.y>B.divTop-12){const k=clamp(Math.floor(t.x/B.slotW),0,6);B.fill[k]=Math.min(1,B.fill[k]+(t.y>B.divTop?0.17:0.07))}
+  t.alive=false;spawnGore(t,how,src);
+  const l=listenerPos();const prox=Math.max(0.15,1-Math.hypot(t.x-l.x,t.y-l.y)/(B.D*8));(ST.deathStyle==='confetti'?sParty:sSplat)(role==='biggie'?1:prox,t.x,how==='crush'||how==='slot'||how==='tulip');sScream(t);
+  if(role==='biggie')bigShake=Math.max(bigShake,5);if(t.isPlayer)shake+=14;
+}
+/* --- leaving --- */
+function netGone(why){if(!NET.on)return;netReset();if(running)quit();show('mOnline');netStatus(why,'#ff9a7a')}
+function netLeave(){if(!NET.on)return;
+  if(NET.host)netAll({t:'bye',why:'The host closed the room.'});else netToHost({t:'bye'});
+  setTimeout(netReset,50);
+}
+function netReset(){
+  if(NET.stBak){Object.assign(ST,NET.stBak);NET.stBak=null}
+  for(const P of NET.peers.values())try{P.pc.close()}catch(e){}NET.peers.clear();
+  if(NET.hostPc)try{NET.hostPc.close()}catch(e){}
+  if(NET.roomCh)try{NET.roomCh.leave()}catch(e){}if(NET.lobbyCh)try{NET.lobbyCh.leave()}catch(e){}
+  clearTimeout(NET.joinTo);
+  Object.assign(NET,{on:false,host:false,client:false,inGame:false,code:'',players:[],roomCh:null,lobbyCh:null,quick:false,myI:-1,names:{},ping:0,buf:[],rt:null,byI:{},evq:[],bigInp:null,bigP:null,hostPc:null,hostR:null,hostU:null,prevMe:null,assign:null,joinDone:null,lobby:null});
+  NET.cmap.clear();netBgStop();
+}
+/* --- quick match --- */
+async function netQuick(){
+  netName();netStatus('Searching for an open room …','#cdb4ff');netBusy(true);
+  NET.me={id:netId(),name:netName()};let rooms=[];
+  try{const s=netSig();const ch=await s.join('pch-lobby',{presence:true,onPres:p=>{rooms=Object.values(p)}});
+    await new Promise(r=>setTimeout(r,1500));ch.leave()}
+  catch(e){netBusy(false);netStatus('Could not reach the matchmaking server ('+e.message+').','#ff9a7a');return}
+  rooms=rooms.filter(r=>r&&r.v===NETV&&r.open&&r.n<NETCFG.maxPlayers).sort((x,y)=>y.n-x.n);
+  for(const r of rooms.slice(0,3)){netStatus('Joining '+(r.host||'a room')+' …','#cdb4ff');if(await netJoin(r.code,true))return}
+  netStatus('No open rooms right now. Starting a new one – others can join while you play.','#cdb4ff');
+  await netHost(true);
+  if(NET.host)netHostStart();
+}
+/* --- background ticking for the host (a hidden tab would freeze everyone) --- */
+let netWorker=null;
+function netBgStart(){if(netWorker||!NET.host)return;try{netWorker=new Worker(URL.createObjectURL(new Blob(['setInterval(()=>postMessage(0),33)'],{type:'text/javascript'})));let lt=performance.now();
+  netWorker.onmessage=()=>{if(!document.hidden){return}const t=performance.now(),dt=Math.min(1/20,(t-lt)/1000);lt=t;if(running&&NET.host){update(dt);netHostTick(dt)}}}catch(e){}}
+function netBgStop(){if(netWorker){netWorker.terminate();netWorker=null}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&NET.host)netBgStart();else netBgStop()});
+
+/* --- lobby UI --- */
+function netLobbyUI(){
+  const el=document.getElementById('lbBody');if(!el)return;
+  const pl=NET.host?NET.players:(NET.lobby?NET.lobby.players:[]);
+  document.getElementById('lbCode').textContent=NET.code;
+  const me=pl.find(p=>p.id===NET.me.id),bigP=pl.find(p=>p.role==='B'),tn=pl.filter(p=>p.role==='T');
+  let h=`<div class="seat"><span class="sr" style="color:#f4c45a">Biggie</span><span>${bigP?esc(bigP.name)+(bigP.id===NET.me.id?' (you)':''):'<i style="opacity:.6">bot</i>'}</span></div>`;
+  for(let i=0;i<4;i++){const p=tn[i];h+=`<div class="seat"><span class="sr" style="color:${TCOL[i]}">Tiny ${i+1}</span><span>${p?esc(p.name)+(p.id===NET.me.id?' (you)':''):'<i style="opacity:.6">bot</i>'}</span></div>`}
+  el.innerHTML=h;
+  const run=NET.host?(running&&NET.inGame):(NET.lobby&&NET.lobby.running);
+  document.getElementById('lbRoleB').disabled=!me||me.role==='B'||run;
+  document.getElementById('lbRoleT').disabled=!me||me.role==='T'||tn.length>=4||run;
+  document.getElementById('lbStart').classList.toggle('hidden',!NET.host);
+  document.getElementById('lbBoards').classList.toggle('hidden',!NET.host);
+  document.getElementById('lbWait').classList.toggle('hidden',NET.host);
+  document.getElementById('lbWait').textContent=run?'Joining the round that is running …':'Waiting for the host to start the round …';
+  if(NET.host){const b=document.getElementById('lbBoards');b.innerHTML=Object.entries(BOARDS).map(([k,v])=>`<button class="b${ST.board===k?' p':''}" data-nb="${k}" style="min-width:0;padding:6px 12px;font-size:13px">${v}</button>`).join('');b.querySelectorAll('[data-nb]').forEach(x=>x.onclick=()=>{ST.board=x.dataset.nb;saveSet();previewBoard();netLobbyPush()})}
+  document.getElementById('lbInfo').textContent=(NET.quick?'Quick match room':'Private room')+' · '+pl.length+'/'+NETCFG.maxPlayers+' players · empty seats are bots';
+}
+function netWantRole(r){if(NET.host){const pl=NET.players.find(p=>p.id===NET.me.id);netSetRole(pl,r)}else netToHost({t:'role',r})}
+function netInvite(){const t='Join my Panichinko room: code '+NET.code;try{navigator.clipboard.writeText(t);toast('Copied: '+t)}catch(e){}}
+
+/* --- wire up: wrap game functions --- */
+const origFeed=feed,origFx=fx,origOnBounce=onBounce,origKill=kill,origTilt=tilt,origDrop=dropCoin,origUseBig=useBigPower,origEnd=endGame;
+const NETSND={sSlot,sTulip,sSpin,sDrop,sTunnel,sMulti,sTilt,sClose};
+feed=function(msg){origFeed(msg);netEmit('feed',msg)};
+fx=function(x,y,text,col){origFx(x,y,text,col);netEmit('fx',r1(x),r1(y),text,col)};
+let netBT=0;onBounce=function(x,y,imp,c){origOnBounce(x,y,imp,c);if(now-netBT>0.03||(c&&c.blood>0.15)){netBT=now;netEmit('bounce',r1(x),r1(y),Math.round(imp),c?c.id:null)}};
+kill=function(t,how,src){const was=t.alive;origKill(t,how,src);if(was&&!t.alive)netEmit('kill',t.i,how,src?src.id:null)};
+tilt=function(dir){if(NET.client){NET.cnt[dir<0?'tl':'tr']++;return}const k=big&&big.tiltT;origTilt(dir);if(big&&big.tiltT!==k)netEmit('tilt',dir)};
+dropCoin=function(){if(NET.client){NET.cnt.dr++;return}origDrop()};
+useBigPower=function(){if(NET.client){NET.cnt.bp++;return}origUseBig()};
+for(const k of ['sSlot','sTulip','sSpin','sDrop','sTunnel','sMulti']){const o=NETSND[k];window[k]=function(){o.apply(null,arguments);netEmit('snd',k,...Array.from(arguments).map(v=>typeof v==='number'?r1(v):v))}}
+sSlot=window.sSlot;sTulip=window.sTulip;sSpin=window.sSpin;sDrop=window.sDrop;sTunnel=window.sTunnel;sMulti=window.sMulti;
+endGame=function(){
+  if(NET.host&&NET.inGame){const sc={};for(const t of tinies)sc[t.i]=[Math.round(t.score),t.deaths,t.st];
+    netAll({t:'end',sc,big:[Math.round(big.score),big.kills]});NET.evq=[]}
+  origEnd();
+  if(!NET.on)document.getElementById('again').textContent='Play again';
+  if(NET.on){NET.inGame=false;for(const P of NET.peers.values())P.inGame=false;const a=document.getElementById('again');a.textContent='Back to lobby';netLobbyPush();netAdvertise()}
+};
+document.getElementById('onQuick').onclick=()=>netQuick();
+document.getElementById('onCreate').onclick=()=>netHost(false);
+document.getElementById('onJoin').onclick=()=>netJoin(document.getElementById('onCode').value);
+document.getElementById('onCode').addEventListener('keydown',e=>{if(e.key==='Enter')netJoin(e.target.value)});
+document.getElementById('lbCopy').onclick=netInvite;
+document.getElementById('lbRoleB').onclick=()=>netWantRole('B');
+document.getElementById('lbRoleT').onclick=()=>netWantRole('T');
+document.getElementById('lbStart').onclick=()=>{if(NET.host&&!running)netHostStart()};
+document.getElementById('lbLeave').onclick=()=>{netLeave();show('mOnline');netStatus('You left the room.')};
+(function(){const m=location.hash.match(/room=([A-Za-z]{4})/);if(m){show('mOnline');document.getElementById('onCode').value=m[1].toUpperCase()}})();
 /* test hook */
-window.__pch={startGame,get state(){return{running,role,coins:coins.length,bodies:bodies.length,awake:bodies.filter(b=>!b.asleep).length,drops:drops.length,tinies:tinies.map(t=>({alive:t.alive,score:Math.round(t.score),deaths:t.deaths,x:Math.round(t.x),y:Math.round(t.y)})),big:{score:Math.round(big?big.score:0),kills:big?big.kills:0},roundT}},setRound:v=>{roundT=v}};
+window.__pch={startGame,NET,get state(){return{running,role,coins:coins.length,bodies:bodies.length,awake:bodies.filter(b=>!b.asleep).length,drops:drops.length,tinies:tinies.map(t=>({alive:t.alive,score:Math.round(t.score),deaths:t.deaths,x:Math.round(t.x),y:Math.round(t.y)})),big:{score:Math.round(big?big.score:0),kills:big?big.kills:0},roundT}},setRound:v=>{roundT=v}};
 </script>
 </body>
 </html>

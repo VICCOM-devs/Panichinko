@@ -9,6 +9,7 @@ Asymmetric pachinko multiplayer by VICCOM: one **Biggie** drops coins, up to fou
 | `tools/heatmap/` | Coin drop heatmap (1,000 simulated drops). |
 | `tests/` | Playwright tests: streamer mode with a mocked Twitch chat, plus a smoke test for both roles. |
 | `docs/HANDOVER.md` | Current state, decisions and next steps. |
+| `docs/ONLINE.md` | How online play works (P2P WebRTC, Supabase Realtime signalling) and its limits. |
 
 The real game will be built in Godot 4 (GDScript) in this repo later.
 
@@ -17,11 +18,13 @@ The real game will be built in Godot 4 (GDScript) in this repo later.
 ```bash
 npm install && npx playwright install chromium
 npm test                          # tests against demo/index.html
-python3 tools/build_itch.py 0.1.0 # makes dist/panichinko-demo-v0.1.0-html5.zip
+python3 tools/build_itch.py 0.2.0 # makes dist/panichinko-demo-v0.2.0-html5.zip
 npm run test:dist                 # smoke-tests the built file
 ```
 
 CI (`.github/workflows/demo.yml`) runs the tests on every push and PR and attaches the itch zip as a build artifact.
+
+Two tabs playing together on one machine: serve `demo/` (`npx serve demo`) and open it with `?sig=local`.
 
 ## Releasing the demo
 

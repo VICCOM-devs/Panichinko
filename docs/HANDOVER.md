@@ -1,15 +1,20 @@
-# Panichinko – handover (updated 2026-10-28)
+# Panichinko – handover (updated 2026-10-28, v0.2.0)
 
 ## Where things live
 - **Repo: `VICCOM-devs/panichinko` (source of truth since 2026-10-28).** `demo/index.html` is the playable demo, `tools/build_itch.py` builds the itch zip, `tools/heatmap/` holds the drop heatmap, `tests/` has the Playwright tests, and CI is in `.github/workflows/demo.yml`.
 - GDD (Claude Doc): https://claude.ai/artifact/D4UfVajWPZuoE9kdZb4dc1
-- Claude preview of the demo (artifact, version 1793185312-61d1 = v0.1.0): https://claude.ai/artifact/8mVqBQW2tH3fU8yJxBq4Jy. It's a copy for quick play in the browser; edit the repo first.
-- itch.io build: `panichinko-demo-v0.1.0-html5.zip`, built by CI (artifact `itch-html5`) or with `python3 tools/build_itch.py 0.1.0`.
+- Claude preview of the demo: https://claude.ai/artifact/8mVqBQW2tH3fU8yJxBq4Jy. It's a copy for quick play in the browser; edit the repo first. Online play and Twitch probably don't work inside the artifact sandbox.
+- itch.io build: `panichinko-demo-v0.2.0-html5.zip`, built by CI (artifact `itch-html5`) or with `python3 tools/build_itch.py 0.2.0`. Page: viccom-games.itch.io/panichinko.
 
 ## Core design
 - 1 Biggie (pachinko player) vs up to 4 Tinies inside the board. 2-minute rounds. Coin:Tiny scale 1:5 minimum, with a slider.
 - PC first (16:9/16:10 full screen, wider screens supported in settings), itch.io demo, then Steam, then mobile.
-- Engine for the real game: Godot 4 + GDScript. The HTML demo is for testing feel and rules only.
+- Engine for the real game: Godot 4 + GDScript. The HTML demo is the public itch.io demo and the place to test feel and rules.
+
+## Online play (v0.2.0, decided 2026-10-28: online from the start)
+- Peer-to-peer WebRTC, host-authoritative. Supabase Realtime on the Wobble Wheels project is used only for signalling (broadcast + presence, no tables). Room codes (4 letters) + quick match. Up to 5 players, and bots fill empty seats. Details and limits: `docs/ONLINE.md`.
+- No TURN server yet, so roughly 1 in 10 players on strict networks can't connect. Add TURN when that shows up in feedback.
+- Tested over a same-origin test transport (`?sig=local`). **Not yet tested over real Supabase or between two real networks.** That's the first thing to check on itch.
 
 ## Scoring (current numbers)
 - Tinies: no death penalty. Death = about 5 s respawn with no scoring, and the streak resets.
@@ -43,14 +48,16 @@
 - Offline play uses bots. Tiny bots are a mix of easy, normal and hard. The Biggie bot can be set to easy, normal or brutal. First-time hints are on.
 
 ## Open decisions
-- Online play is built in Godot. Hosting is open: relay or dedicated server.
+- Online play in Godot later: keep the same P2P + signalling model, or move to a relay or dedicated server for Steam (Steam has its own P2P networking).
+- TURN provider for players who can't connect peer-to-peer (Cloudflare or metered.ca).
 - iOS build machine: Mac or cloud Mac.
 - The demo is English only. House rule is Swedish + English, so a language toggle is needed before a public itch launch (or the page is marked as an English-only test build).
 - itch.io page: restricted (testers only, secret URL) or public.
 
 ## Next steps
-1. Victor creates the itch.io project (HTML5, embed 1280×720, fullscreen button on, mobile-friendly off), uploads the zip and tests streamer mode on VICCOM_Games.
+1. Victor creates the itch.io project (HTML5, embed 1280×720, fullscreen button on, mobile-friendly off) as Restricted, uploads the v0.2.0 zip and tests online play on two different networks (PC + phone hotspot laptop, or a friend) and streamer mode on VICCOM_Games.
 2. Victor playtests and gives feedback on the vote options and timing.
 3. Swedish/English language toggle for the demo.
 4. Victor installs Godot 4.
-5. Godot vertical slice in this repo (`game/`): board, coin physics, one Tiny, one Biggie, local play. Then the online prototype. Local multiplayer (mouse vs gamepads) comes later.
+5. Client-side prediction for your own Tiny if the input delay feels bad.
+6. Godot vertical slice in this repo (`game/`). Local multiplayer (mouse vs gamepads) comes later.
