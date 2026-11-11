@@ -18,7 +18,7 @@ The real game will be built in Godot 4 (GDScript) in this repo later.
 ```bash
 npm install && npx playwright install chromium
 npm test                          # tests against demo/index.html
-python3 tools/build_itch.py 0.2.0 # makes dist/panichinko-demo-v0.2.0-html5.zip
+python3 tools/build_itch.py 0.3.0 # makes dist/panichinko-demo-v0.3.0-html5.zip
 npm run test:dist                 # smoke-tests the built file
 ```
 

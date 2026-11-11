@@ -1,4 +1,4 @@
-# Online play (demo v0.2.0)
+# Online play (demo v0.3.0)
 
 **Model:** peer-to-peer, host-authoritative. The host's browser runs the full simulation (the same code as offline play). Each client sends its inputs about 30 times a second and draws 20 Hz snapshots from the host, 100 ms behind with interpolation. Gore, ragdolls, blood and most sounds are simulated locally on each client from host events, because corpses never affect gameplay.
 
@@ -12,6 +12,8 @@
 **Rooms:** up to 5 players (1 Biggie, 4 Tinies). Bots fill empty seats. The room creator starts as the Biggie and joiners as Tinies; anyone can switch in the lobby between rounds. People who join mid-round take a bot's seat. When someone leaves, a bot takes their seat. When the host leaves, the room closes. If the host hides the tab, a Web Worker keeps the simulation ticking.
 
 **Snapshot:** about 3 KB of JSON at 20 Hz, so about 60 KB/s upload per client for the host.
+
+**v0.3.0 additions:** inputs carry `hm` (aimed hook on/off), `ht` (hat) and, for a remote Biggie, `cs` (coin skin). Snapshots carry each Tiny's flying hook (`hook`), hat and the coin skin (`x[3]`). The end message carries the Biggie's challenge counters. `NETV` is 0.3.0, so 0.2.0 clients are refused.
 
 **Known limits:**
 - No client-side prediction yet: your own Tiny reacts after one round trip (usually 30–120 ms).
