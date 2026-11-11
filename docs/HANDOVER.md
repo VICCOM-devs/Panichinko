@@ -26,7 +26,7 @@
 
 ## Tiny controls
 - A/D move, Space jump, Shift dash, click to shoot the grappling hook (E works too), W/S reel in and out, Q power.
-- **Aimed hook (v0.3.0, default with a mouse):** the hook is a projectile (1150 u/s, range 3 peg gaps) that flies exactly where the cursor points and only sticks to an anchor it hits. A miss costs a 0.35 s reload. A dashed aim line shows the path and rings the peg it would hit. Hooking again before landing gives a chain bonus (+1 to +5), shots over 2.2 peg gaps give Long shot +3. The old rope stays attached until the new hook lands.
+- **Aimed hook (v0.3.0, default with a mouse):** the hook is a projectile (1150 u/s, range 3 peg gaps) that flies exactly where the cursor points and sticks to the first thing it hits: pegs, walls, rails, ramps, dividers, the floor, tulips, shelter lids and spinner blades. On a spinner it attaches to the exact point it hit and that point turns with the spinner. Out of range (or out the open top) is a miss and costs a 0.35 s reload. A dashed aim line shows the path and rings the point it would hit. Climbing on top with jump only works on pegs and caps, not on surface points. Hooking again before landing gives a chain bonus (+1 to +5), shots over 2.2 peg gaps give Long shot +3. The old rope stays attached until the new hook lands.
 - Assisted hook (the old snap-to-peg version) is still there: Settings → Grapple hook. Touch, keyboard-only play and bots always use it. It gets no chain or long-shot bonus.
 - Grapple lasts 4 s. The rope needs line of sight (rails and shelter lids don't block it).
 - Shelter power: the lid blocks coins but is a one-way hatch for Tinies. Jump up through it, stand on it, hold S to drop back in.
@@ -40,6 +40,9 @@
 - Three daily challenges, seeded by the date (one Tiny, one Biggie, one any). Progress adds up over the day.
 - Unlocks in Main menu → Locker & challenges: 9 hats (level 2–16, a 3-day streak, 8 challenges) and 7 coin skins (level 3–14, 20 challenges). Hats and the Biggie's coin skin sync online. Bots wear random hats and a bot Biggie uses a random coin skin, to show them off.
 - Not done yet: accounts or cloud save (progress is per browser), online leaderboards, unlockable boards and pegs.
+
+## Spawning
+- Tinies only spawn in the bottom third of the board (spawn points with y ≥ 67 % of the height), still picking the spot furthest from falling coins. Shinies still appear all over the board.
 
 ## Boards
 - Classic, Clean White, Neon (moving pegs), Haunted (disappearing pegs), Tunnels (coin holes in the walls with short ramps; about a third of coins tunnel and none get stuck in simulation).
@@ -68,7 +71,7 @@
 - itch.io page: restricted (testers only, secret URL) or public.
 
 ## Next steps
-0. Victor merges the v0.3.0 PR, playtests the aimed hook (range, hook speed, reload time and whether the aim line makes it too easy) and the XP pace.
+0. Victor merges the v0.3.0 PR, playtests the aimed hook (range, hook speed, reload time, whether the aim line makes it too easy, and whether hooking walls and the floor makes climbing too easy) and the XP pace.
 1. Victor creates the itch.io project (HTML5, embed 1280×720, fullscreen button on, mobile-friendly off) as Restricted, uploads the v0.3.0 zip and tests online play on two different networks (PC + phone hotspot laptop, or a friend) and streamer mode on VICCOM_Games.
 2. Victor playtests and gives feedback on the vote options and timing.
 3. Swedish/English language toggle for the demo.

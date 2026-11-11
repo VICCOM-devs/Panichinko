@@ -27,17 +27,26 @@ let fails=0;const ok=(c,msg)=>{if(c)console.log('ok -',msg);else{console.error('
  ok(st.n===1,'hook shot is counted');
  await p.waitForTimeout(500);
  ok(await p.evaluate(()=>!!__pch.raw().tinies[0].grapple),'rope holds while swinging');
- // a shot into empty board misses and starts a short reload
+ // the hook sticks to any surface: here the left wall
  await calm();
- const miss=await p.evaluate(()=>{const r=__pch.raw(),t=r.tinies[0],B=r.B;t.grapple=null;t.hook=null;t.grappleCD=0;t.vx=t.vy=0;
-   // find a direction with no anchor within range
-   const A=__pch.anchors();let best=null;for(let k=0;k<72;k++){const a=-Math.PI*k/72,dx=Math.cos(a),dy=Math.sin(a);let clear=1e9;for(const q of A){const ex=q.x-t.x,ey=q.y-(t.y-3),al=ex*dx+ey*dy;if(al<0||al>B.D*3.2)continue;const pd=Math.abs(ex*dy-ey*dx)-(q.r||2);clear=Math.min(clear,pd)}if(!best||clear>best.c)best={c:clear,dx,dy}}
-   return{x:t.x+best.dx*120,y:t.y+best.dy*120,c:best.c}});
- s=await p.evaluate(a=>__pch.toScreen(a.x,a.y),miss);await p.mouse.move(s.x,s.y);await p.waitForTimeout(60);
- const n0=await p.evaluate(()=>__pch.raw().tinies[0].st.nHook||0);
- await p.mouse.down();await p.mouse.up();await p.waitForTimeout(450);
- st=await p.evaluate(()=>{const t=__pch.raw().tinies[0];return{g:!!t.grapple,n:t.st.nHook||0}});
- ok(miss.c>6?(!st.g&&st.n===n0):true,'a shot between the pegs misses (clearance '+miss.c.toFixed(1)+')');
+ const wall=await p.evaluate(()=>{const r=__pch.raw(),t=r.tinies[0],B=r.B,A=__pch.anchors();
+   let y=B.H*0.5;for(let k=0;k<200;k++){const yy=B.H*0.3+k*2;if(A.every(q=>Math.abs(q.y-yy)>q.r+14||q.x>B.D*1.6)){y=yy;break}}
+   t.grapple=null;t.hook=null;t.grappleCD=0;t.x=B.D*1.2;t.y=y+3;t.vx=0;t.vy=0;t.fallTop=t.y;t.inv=5;return{ok:__pch.fire(0,-1,0),y}});
+ await p.waitForFunction(()=>{const t=__pch.raw().tinies[0];return !!t.grapple||!t.hook},null,{timeout:2000}).catch(()=>{});
+ st=await p.evaluate(()=>{const t=__pch.raw().tinies[0],g=t.grapple;return g?{surf:!!g.p.surf,x:g.p.x,y:g.p.y}:null});
+ ok(wall.ok&&st&&st.surf&&st.x<12&&Math.abs(st.y-wall.y)<4,'hook sticks to the wall where it hit ('+JSON.stringify(st)+')');
+ // hooking the spinner attaches to the hit point, which then turns with the spinner
+ await calm();
+ const sp=await p.evaluate(()=>{const r=__pch.raw(),t=r.tinies[0],q=r.B.spinners[0];t.grapple=null;t.hook=null;t.grappleCD=0;t.x=q.x+3;t.y=q.y+q.len+40;t.vx=0;t.vy=0;t.fallTop=t.y;t.inv=5;return{ok:__pch.fire(0,0,-1),x:q.x,y:q.y,len:q.len}});
+ await p.waitForFunction(()=>{const t=__pch.raw().tinies[0];return !!t.grapple||!t.hook},null,{timeout:2000}).catch(()=>{});
+ const a1=await p.evaluate(()=>{const g=__pch.raw().tinies[0].grapple;return g&&g.p.sp?{x:g.p.x,y:g.p.y,d:g.p.d}:null});
+ await p.waitForTimeout(250);
+ const a2=await p.evaluate(()=>{const g=__pch.raw().tinies[0].grapple;return g&&g.p.sp?{x:g.p.x,y:g.p.y,d:g.p.d}:null});
+ ok(sp.ok&&a1&&a1.d<=sp.len+3,'hook sticks to the spinner at the point it hit (d '+(a1&&a1.d.toFixed(1))+')');
+ ok(a1&&a2&&Math.hypot(a2.x-a1.x,a2.y-a1.y)>2&&Math.abs(Math.hypot(a2.x-sp.x,a2.y-sp.y)-a1.d)<0.5,'the hook point turns with the spinner and the rope holds');
+ // Tinies only spawn in the bottom third
+ const lowest=await p.evaluate(()=>{const B=__pch.raw().B;let m=1e9;for(let k=0;k<300;k++)m=Math.min(m,__pch.spawn().y);return{m,lim:B.H*0.67}});
+ ok(lowest.m>=lowest.lim,'spawns stay in the bottom third (highest '+lowest.m.toFixed(0)+', limit '+lowest.lim.toFixed(0)+')');
  // shelter: a Tiny inside a sheltered slot can jump out through the hatch and stand on it
  await calm();
  const sh=await p.evaluate(()=>{const r=__pch.raw(),t=r.tinies[0],B=r.B;t.grapple=null;t.hook=null;t.x=B.slotW*2.5;t.y=B.floor-7.5;t.vx=t.vy=0;t.fallTop=t.y;__pch.power(0,'shelter');return{lid:r.lids.length&&r.lids[0].ay,divTop:B.divTop}});

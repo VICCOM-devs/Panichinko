@@ -629,7 +629,7 @@ function startGame(r){
 }
 const HINTS={
   tiny:{h:'How to play: Tiny',b:'<b>Move</b> A/D · <b>Jump</b> Space · <b>Dash</b> Shift · <b>Grapple</b> click to shoot the hook where you aim (E works too) · <b>Reel</b> W/S · <b>Power</b> Q<br>On phones, use the on-screen buttons.<br><br><b>Survive.</b> Coins kill on contact from above, in slots, in tulips, and hard side hits hurt. Long falls hurt too.<br><br><b>Score:</b> staying alive (more the higher you are and the longer your streak), close calls, surfing on falling coins, silver shinies, and blocking coins with your powerups. Dying costs no points, but resets your streak.',
-    tips:[[3,'Red arrows at the screen edge = coins coming your way'],[11,'Aim at a peg and click: the hook only sticks if you hit it. Reel in with W, then jump to climb on top'],[16,'Hook again before you land for chain bonuses. Long shots pay extra'],[20,'Zones pay ×0 to ×10: the top pays most, red striped areas pay little or nothing. Tulips and the spinner pay extra'],[30,'Land on a falling coin to surf it for +12/s']]},
+    tips:[[3,'Red arrows at the screen edge = coins coming your way'],[11,'Aim and click: the hook sticks to whatever it hits – pegs, walls, rails, even the spinner. On a peg, reel in with W and jump to climb on top'],[16,'Hook again before you land for chain bonuses. Long shots pay extra'],[20,'Zones pay ×0 to ×10: the top pays most, red striped areas pay little or nothing. Tulips and the spinner pay extra'],[30,'Land on a falling coin to surf it for +12/s']]},
   biggie:{h:'How to play: Biggie',b:'<b>Aim</b> mouse or A/D · <b>Drop</b> click or Space · <b>Tilt</b> Z/X or right-click (3 charges) · <b>Power</b> Q<br>On phones: drag to aim, tap to drop, Tilt buttons bottom left.<br><br>Your hand sways a little, so time your drops.<br><br><b>Score:</b> slots (1–10), spinner hits, tulips (+5), and +60 for every Tiny you squish. Hit a ? orb with a coin to get a powerup.',
     tips:[[3,'Watch the sway – drop when the hand swings over your target'],[12,'Tilt (Z / X) shoves every coin and knocks Tinies off pegs'],[22,'Tulips catch coins for +5 and snap shut on Tinies hiding inside'],[32,'Knocking a Tiny to a fatal fall with a tilt gives half a kill (+30)']]}
 };
@@ -773,7 +773,8 @@ function playerTiny(){return role==='tiny'?tinies[0]:null}
 function listenerPos(){const p=playerTiny();return p&&p.alive?{x:p.x,y:p.y}:{x:cam.x,y:cam.y}}
 function pickSpawn(){
   let best=null,bs=-1;
-  for(let n=0;n<14;n++){const s=B.spawns[Math.floor(Math.random()*B.spawns.length)];
+  const low=B.spawns.filter(s=>s.y>=B.H*0.67),S=low.length?low:B.spawns;
+  for(let n=0;n<14;n++){const s=S[Math.floor(Math.random()*S.length)];
     let score=Math.random()*30;
     for(const c of coins){if(c.inSlot)continue;const dx=Math.abs(s.x-c.x);if(c.y<s.y+B.R)score+=Math.min(dx,B.D*3)}
     if(!coins.length)score+=100;
@@ -1107,8 +1108,8 @@ function segX(ax,ay,bx,by,cx,cy,dx,dy){const r1=(bx-ax)*(cy-ay)-(by-ay)*(cx-ax),
 const BLOCK={wall:1,div:1,cap:1,petal:1,cup:1,floor:1};
 function ropeClear(x0,y0,a){
   const l=Math.hypot(a.x-x0,a.y-y0)||1,ex=a.x-(a.x-x0)/l*(a.r+1.5),ey=a.y-(a.y-y0)/l*(a.r+1.5);
-  for(const s of allSegs()){if(!BLOCK[s.k])continue;if(a.cap&&Math.abs(s.ax-a.x)<8&&Math.abs(s.ay-a.y)<2)continue;if(a.cap&&s.k==='div'&&Math.abs(s.ax-a.x)<1)continue;if(a.tip&&s.tp===a.tip)continue;if(segX(x0,y0,ex,ey,s.ax,s.ay,s.bx,s.by))return false}
-  for(const e of bladeEnds())if(segX(x0,y0,ex,ey,e[2].x,e[2].y,e[0],e[1]))return false;
+  for(const s of allSegs()){if(!BLOCK[s.k])continue;if(a.cap&&Math.abs(s.ax-a.x)<8&&Math.abs(s.ay-a.y)<2)continue;if(a.cap&&s.k==='div'&&Math.abs(s.ax-a.x)<1)continue;if(a.tip&&s.tp===a.tip)continue;if(a.surf&&a.tp&&s.tp===a.tp)continue;if(segX(x0,y0,ex,ey,s.ax,s.ay,s.bx,s.by))return false}
+  for(const e of bladeEnds())if(e[2]!==a.sp&&segX(x0,y0,ex,ey,e[2].x,e[2].y,e[0],e[1]))return false;
   return true;
 }
 function anchorsAll(){let a=B.pegs.filter(p=>!p.off).concat(fakes,B.caps);for(const tp of B.tulips)a=a.concat(tp.tips);return a}
@@ -1121,14 +1122,23 @@ function tryHook(t,ax,ay){
 function hookAttach(t,p){t.grapple={p,L:Math.hypot(p.x-t.x,p.y-t.y),t:4.0};t.lastAnchor=p;t.dashT=0;t.flip=null;t.swingStyle=pick(['tarzan','twohand','pike']);if(t.swingStyle==='tarzan'&&Math.random()<0.03)sTarzan(t);t.swingSide=Math.random()<.5?1:-1}
 /* aimed hook: a projectile that flies where you point and only sticks to what it actually hits */
 const HOOKV=1150,HOOKR=2.6;
+/* where the step p->q crosses the segment a->b (or null) */
+function segPt(px,py,qx,qy,ax,ay,bx,by){const rx=qx-px,ry=qy-py,sx=bx-ax,sy=by-ay,den=rx*sy-ry*sx;if(Math.abs(den)<1e-9)return null;const u=((ax-px)*sy-(ay-py)*sx)/den,v=((ax-px)*ry-(ay-py)*rx)/den;return u>=0&&u<=1&&v>=0&&v<=1?{x:px+rx*u,y:py+ry*u}:null}
+/* a hook point on a spinner turns with it */
+function gpUpd(p){if(p&&p.sp){const a=p.sp.a+p.ang;p.x=p.sp.x+Math.cos(a)*p.d;p.y=p.sp.y+Math.sin(a)*p.d}}
+function spinPt(sp,x,y){const dx=x-sp.x,dy=y-sp.y;return{x,y,r:0.5,surf:true,sp,d:Math.hypot(dx,dy),ang:Math.atan2(dy,dx)-sp.a}}
+/* the hook sticks to whatever it hits first: pegs, walls, rails, ramps, dividers, the floor, tulips, shelter lids and spinner blades */
 function hookAdvance(h,dist,t){
   const A=anchorsAll(),segs=allSegs(),bl=bladeEnds();let left=dist;
   while(left>0){const st=Math.min(2.5,left);left-=st;const px=h.x,py=h.y;h.x+=h.dx*st;h.y+=h.dy*st;h.d+=st;
     if(h.d>10)for(const p of A){if(p.gone||p.off||(t.grapple&&p===t.grapple.p))continue;const ex=p.x-h.x,ey=p.y-h.y,rr=(p.r||2)+HOOKR;if(ex>rr||ex<-rr||ey>rr||ey<-rr)continue;if(ex*ex+ey*ey<rr*rr)return p}
-    if(h.x<1||h.x>B.W-1||h.y<-30||h.y>B.floor)return'miss';
-    for(const g of segs){if(!BLOCK[g.k])continue;if(segX(px,py,h.x,h.y,g.ax,g.ay,g.bx,g.by))return'miss'}
-    for(const e of bl)if(segX(px,py,h.x,h.y,e[2].x,e[2].y,e[0],e[1]))return'miss';
-    if(h.d>=h.max)return'miss'}
+    if(h.d>8){
+      for(const e of bl){const q=segPt(px,py,h.x,h.y,e[2].x,e[2].y,e[0],e[1]);if(q)return spinPt(e[2],q.x,q.y)}
+      for(const sp of B.spinners)if(Math.hypot(h.x-sp.x,h.y-sp.y)<6+HOOKR)return spinPt(sp,h.x,h.y);
+      for(const g of segs){const q=segPt(px,py,h.x,h.y,g.ax,g.ay,g.bx,g.by);if(q)return{x:q.x,y:q.y,r:0.5,surf:true,lid:g.lid||null,tp:g.tp||null}}
+      if(h.x<=1||h.x>=B.W-1)return{x:clamp(h.x,1,B.W-1),y:h.y,r:0.5,surf:true};
+      if(h.y>=B.floor)return{x:h.x,y:B.floor,r:0.5,surf:true}}
+    if(h.y<-30||h.d>=h.max)return'miss'}
   return'fly'}
 function fireHook(t,ax,ay){if(t.hook||t.grappleCD>0)return false;ay+=3;const l=Math.hypot(ax,ay)||1;if(Math.abs(ax)>l*0.15)t.facing=ax<0?-1:1;t.hook={x:t.x,y:t.y-3,dx:ax/l,dy:ay/l,d:0,max:B.D*3,st:0};return true}
 function stepHook(t,dt){const h=t.hook;if(!h)return;
@@ -1161,7 +1171,7 @@ function control(t,dt){
   const dir=(i.right?1:0)-(i.left?1:0);if(dir)t.facing=dir;
   t.dashCD-=dt;t.grappleCD-=dt;t.coyote-=dt;
   if(i.dashP&&t.dashCD<=0){if(t.isPlayer)sDash();t.dashT=0.14;t.dashCD=1.5;t.dashDir=dir||t.facing;t.grapple=null}
-  if(i.jumpP&&t.grapple&&Math.hypot(t.x-t.grapple.p.x,t.y-t.grapple.p.y)<=TR+t.grapple.p.r+8){const g=t.grapple.p;t.grapple=null;t.x=g.x;t.y=g.y-g.r-TR-0.5;t.vx=0;t.vy=-60;t.fallTop=t.y;i.jumpP=false;if(t.isPlayer)fx(t.x,t.y-14,'climb','#ddd')}
+  if(i.jumpP&&t.grapple&&!t.grapple.p.surf&&Math.hypot(t.x-t.grapple.p.x,t.y-t.grapple.p.y)<=TR+t.grapple.p.r+8){const g=t.grapple.p;t.grapple=null;t.x=g.x;t.y=g.y-g.r-TR-0.5;t.vx=0;t.vy=-60;t.fallTop=t.y;i.jumpP=false;if(t.isPlayer)fx(t.x,t.y-14,'climb','#ddd')}
   if(i.jumpP){if(t.grapple){t.grapple=null;t.vy=Math.min(t.vy-120,-260);t.fallTop=t.y;startFlip(t)}else if(t.coyote>0){t.vy=-380;t.coyote=0;t.jumpT=now;if(t.isPlayer)sJump()}}
   if(i.hookP){if(t.aimHook){if(fireHook(t,i.aimX,i.aimY)&&t.isPlayer)sHookFire()}else{const had=t.grapple&&t.grapple.p;tryHook(t,i.aimX,i.aimY);if(t.isPlayer){sHookFire();if(t.grapple&&t.grapple.p!==had)setTimeout(sHookHit,70)}}}
   stepHook(t,dt);
@@ -1171,7 +1181,7 @@ function control(t,dt){
   else if(t.grapple){
     t.vx+=dir*460*dt;const g=t.grapple,minL=TR+g.p.r+1;
     if(i.up)g.L=Math.max(minL,g.L-180*dt);if(i.down)g.L=Math.min(B.D*3,g.L+130*dt);
-    g.t-=dt;if(g.t<=0||g.p.gone||g.p.off){t.grapple=null;t.fallTop=t.y;startFlip(t)}
+    g.t-=dt;gpUpd(g.p);if(g.t<=0||g.p.gone||g.p.off||(g.p.lid&&!lids.includes(g.p.lid))){t.grapple=null;t.fallTop=t.y;startFlip(t)}
     else if(!ropeClear(t.x,t.y-3,g.p)){t.grapple=null;t.fallTop=t.y;if(t.isPlayer){fx(t.x,t.y-16,'rope cut!','#ffb070');sRopeCut()}}
   }else{const k=t.grounded?18:(dir?5:0.4);t.vx+=(dir*sp-t.vx)*Math.min(1,k*dt)}
   t.anim+=Math.abs(t.vx)*dt*0.15;
@@ -1187,9 +1197,9 @@ function stepTiny(t,h,blades){
   for(const s of allSegs()){if(s.k==='lid'){if(!t.inp.down&&plat((s.ax+s.bx)/2,s.ay-4,(s.bx-s.ax)/2+TR*0.5))t._peg=false;continue}if(s.k==='cap'&&plat((s.ax+s.bx)/2,s.ay,7+TR*0.55)){t._peg=true;continue}const k=colS(t,TR,s.ax,s.ay,s.bx,s.by);if(k){hit(k,false);if(s.tp)t.onTulip=0.25}}
   for(const tp of B.tulips){if(Math.abs(t.x-tp.x)<tp.w*0.8&&t.y>tp.y-tp.h&&t.y<tp.y+2)t.onTulip=0.25}
   const sp=B.spinner;
-  for(const e of blades){const k=colS(t,TR+1,e[2].x,e[2].y,e[0],e[1]);if(k){const svx=-e[2].w*(k.qy-e[2].y),svy=e[2].w*(k.qx-e[2].x);t.x+=k.nx*k.pen;t.y+=k.ny*k.pen;t.vx=svx*1.4+k.nx*140;t.vy=svy*1.4-170;t.grapple=null;if(now-(t.spinT||-9)>1.2){t.spinT=now;award(t,20,'Spinner ride +20','spin')}}}
+  for(const e of blades){const k=colS(t,TR+1,e[2].x,e[2].y,e[0],e[1]);if(k){const svx=-e[2].w*(k.qy-e[2].y),svy=e[2].w*(k.qx-e[2].x);t.x+=k.nx*k.pen;t.y+=k.ny*k.pen;t.vx=svx*1.4+k.nx*140;t.vy=svy*1.4-170;if(!(t.grapple&&t.grapple.p.sp===e[2]))t.grapple=null;if(now-(t.spinT||-9)>1.2){t.spinT=now;award(t,20,'Spinner ride +20','spin')}}}
   for(const sp of B.spinners){const k=colC(t,TR,sp.x,sp.y,6);if(k){hit(k);if(now-(t.spinT||-9)>1.2){t.spinT=now;award(t,20,'Spinner ride +20','spin')}}}
-  if(t.grapple){const g=t.grapple,dx=t.x-g.p.x,dy=t.y-g.p.y,d=Math.hypot(dx,dy);if(d>g.L){const nx=dx/d,ny=dy/d;t.x=g.p.x+nx*g.L;t.y=g.p.y+ny*g.L;const vr=t.vx*nx+t.vy*ny;if(vr>0){t.vx-=vr*nx;t.vy-=vr*ny}}}
+  if(t.grapple){const g=t.grapple;gpUpd(g.p);const dx=t.x-g.p.x,dy=t.y-g.p.y,d=Math.hypot(dx,dy);if(d>g.L){const nx=dx/d,ny=dy/d;t.x=g.p.x+nx*g.L;t.y=g.p.y+ny*g.L;const vr=t.vx*nx+t.vy*ny;if(vr>0){t.vx-=vr*nx;t.vy-=vr*ny}}}
   if(t.y<-300)t.y=-300;
   if(t.x<TR)t.x=TR;if(t.x>B.W-TR)t.x=B.W-TR;
   return gnd;
@@ -2282,7 +2292,7 @@ document.getElementById('lbStart').onclick=()=>{if(NET.host&&!running)netHostSta
 document.getElementById('lbLeave').onclick=()=>{netLeave();show('mOnline');netStatus('You left the room.')};
 (function(){const m=location.hash.match(/room=([A-Za-z]{4})/);if(m){show('mOnline');document.getElementById('onCode').value=m[1].toUpperCase()}})();
 /* test hook */
-window.__pch={startGame,NET,raw:()=>({tinies,B,lids,big,hand,coins}),power:(i,p)=>{tinies[i].power=p;useTinyPower(tinies[i])},prog:()=>PROG,toScreen:(x,y)=>toScreen(x,y),anchors:()=>anchorsAll(),get state(){return{running,role,coins:coins.length,bodies:bodies.length,awake:bodies.filter(b=>!b.asleep).length,drops:drops.length,tinies:tinies.map(t=>({alive:t.alive,score:Math.round(t.score),deaths:t.deaths,x:Math.round(t.x),y:Math.round(t.y)})),big:{score:Math.round(big?big.score:0),kills:big?big.kills:0},roundT}},setRound:v=>{roundT=v}};
+window.__pch={startGame,NET,fire:(i,ax,ay)=>fireHook(tinies[i],ax,ay-3),spawn:()=>pickSpawn(),raw:()=>({tinies,B,lids,big,hand,coins}),power:(i,p)=>{tinies[i].power=p;useTinyPower(tinies[i])},prog:()=>PROG,toScreen:(x,y)=>toScreen(x,y),anchors:()=>anchorsAll(),get state(){return{running,role,coins:coins.length,bodies:bodies.length,awake:bodies.filter(b=>!b.asleep).length,drops:drops.length,tinies:tinies.map(t=>({alive:t.alive,score:Math.round(t.score),deaths:t.deaths,x:Math.round(t.x),y:Math.round(t.y)})),big:{score:Math.round(big?big.score:0),kills:big?big.kills:0},roundT}},setRound:v=>{roundT=v}};
 </script>
 </body>
 </html>
