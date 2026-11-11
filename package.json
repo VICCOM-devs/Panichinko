@@ -2,7 +2,7 @@
   "name": "panichinko-demo",
   "private": true,
   "scripts": {
-    "test": "node tests/streamer.spec.js && node tests/smoke.spec.js && node tests/online.spec.js",
+    "test": "node tests/streamer.spec.js && node tests/smoke.spec.js && node tests/flow.spec.js && node tests/online.spec.js",
     "test:dist": "node tests/smoke.spec.js dist/index.html && node tests/online.spec.js dist",
     "build": "python3 tools/build_itch.py"
   },

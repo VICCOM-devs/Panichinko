@@ -1,10 +1,10 @@
-# Panichinko – handover (updated 2026-10-28, v0.2.0)
+# Panichinko – handover (updated 2026-11-11, v0.3.0)
 
 ## Where things live
-- **Repo: `VICCOM-devs/panichinko` (source of truth since 2026-10-28).** `demo/index.html` is the playable demo, `tools/build_itch.py` builds the itch zip, `tools/heatmap/` holds the drop heatmap, `tests/` has the Playwright tests, and CI is in `.github/workflows/demo.yml`.
+- **Repo: `VICCOM-devs/panichinko` (source of truth since 2026-10-28).** `demo/index.html` is the playable demo, `tools/build_itch.py` builds the itch zip, `tools/heatmap/` holds the drop heatmap, `tests/` has the Playwright tests (`flow.spec.js` covers the hook, shelter, progression), and CI is in `.github/workflows/demo.yml`.
 - GDD (Claude Doc): https://claude.ai/artifact/D4UfVajWPZuoE9kdZb4dc1
 - Claude preview of the demo: https://claude.ai/artifact/8mVqBQW2tH3fU8yJxBq4Jy. It's a copy for quick play in the browser; edit the repo first. Online play and Twitch probably don't work inside the artifact sandbox.
-- itch.io build: `panichinko-demo-v0.2.0-html5.zip`, built by CI (artifact `itch-html5`) or with `python3 tools/build_itch.py 0.2.0`. Page: viccom-games.itch.io/panichinko.
+- itch.io build: `panichinko-demo-v0.3.0-html5.zip`, built by CI (artifact `itch-html5`) or with `python3 tools/build_itch.py 0.3.0`. Page: viccom-games.itch.io/panichinko.
 
 ## Core design
 - 1 Biggie (pachinko player) vs up to 4 Tinies inside the board. 2-minute rounds. Coin:Tiny scale 1:5 minimum, with a slider.
@@ -25,8 +25,21 @@
 - Max 9 coins on the board at once.
 
 ## Tiny controls
-- A/D move, Space jump, Shift dash, E or click to grapple (aims at the mouse), W/S reel in and out, Q power.
-- Grapple lasts 4 s and reloads instantly. You can't grab the same anchor twice in a row. The rope needs line of sight (rails don't block it).
+- A/D move, Space jump, Shift dash, click to shoot the grappling hook (E works too), W/S reel in and out, Q power.
+- **Aimed hook (v0.3.0, default with a mouse):** the hook is a projectile (1150 u/s, range 3 peg gaps) that flies exactly where the cursor points and only sticks to an anchor it hits. A miss costs a 0.35 s reload. A dashed aim line shows the path and rings the peg it would hit. Hooking again before landing gives a chain bonus (+1 to +5), shots over 2.2 peg gaps give Long shot +3. The old rope stays attached until the new hook lands.
+- Assisted hook (the old snap-to-peg version) is still there: Settings → Grapple hook. Touch, keyboard-only play and bots always use it. It gets no chain or long-shot bonus.
+- Grapple lasts 4 s. The rope needs line of sight (rails and shelter lids don't block it).
+- Shelter power: the lid blocks coins but is a one-way hatch for Tinies. Jump up through it, stand on it, hold S to drop back in.
+
+## Animation (v0.3.0)
+- Tinies: pose states cross-fade instead of snapping (`poseBlend`), the air pose is continuous from take-off to fall, squash-and-stretch spring on jump and landing, head nod from acceleration, quick turn when facing flips, blinking, rope sag, throwing arm follows the hook.
+- Hand: pinches the next coin, lets go with a recoil, reaches up for a new coin during the cooldown, and leans against its movement on a spring. Hand movement eases into the target instead of stopping dead. All of it is draw-side (`handVis`), so online clients get it for free.
+
+## Progression (v0.3.0, local storage `pch_prog`)
+- XP per finished round: 20 + score/10, +25 for a new personal best, day-streak bonus (15 × streak, max 7) on the first round of the day, plus challenge rewards. Level L ends at 50·L·(L+1) XP.
+- Three daily challenges, seeded by the date (one Tiny, one Biggie, one any). Progress adds up over the day.
+- Unlocks in Main menu → Locker & challenges: 9 hats (level 2–16, a 3-day streak, 8 challenges) and 7 coin skins (level 3–14, 20 challenges). Hats and the Biggie's coin skin sync online. Bots wear random hats and a bot Biggie uses a random coin skin, to show them off.
+- Not done yet: accounts or cloud save (progress is per browser), online leaderboards, unlockable boards and pegs.
 
 ## Boards
 - Classic, Clean White, Neon (moving pegs), Haunted (disappearing pegs), Tunnels (coin holes in the walls with short ramps; about a third of coins tunnel and none get stuck in simulation).
@@ -55,7 +68,8 @@
 - itch.io page: restricted (testers only, secret URL) or public.
 
 ## Next steps
-1. Victor creates the itch.io project (HTML5, embed 1280×720, fullscreen button on, mobile-friendly off) as Restricted, uploads the v0.2.0 zip and tests online play on two different networks (PC + phone hotspot laptop, or a friend) and streamer mode on VICCOM_Games.
+0. Victor merges the v0.3.0 PR, playtests the aimed hook (range, hook speed, reload time and whether the aim line makes it too easy) and the XP pace.
+1. Victor creates the itch.io project (HTML5, embed 1280×720, fullscreen button on, mobile-friendly off) as Restricted, uploads the v0.3.0 zip and tests online play on two different networks (PC + phone hotspot laptop, or a friend) and streamer mode on VICCOM_Games.
 2. Victor playtests and gives feedback on the vote options and timing.
 3. Swedish/English language toggle for the demo.
 4. Victor installs Godot 4.
